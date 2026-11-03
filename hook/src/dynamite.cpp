@@ -1,5 +1,6 @@
 #include "dynamite.h"
 #include "windows.h"
+#include <csignal>
 #include <eh.h>
 #include <exception>
 #include <filesystem>

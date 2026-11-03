@@ -24,7 +24,7 @@ namespace Dynamite {
 //while the hook/detour is at <name>Hook function pointer.
 //TODO: rethink, could iterate over a map if I have a lookup of name to detour function (name##Hook)
 #define CREATE_HOOK(name)\
-    MH_STATUS name##CreateStatus = MH_CreateHook((LPVOID*)addressSet[#name], name##Hook, (LPVOID*)&name); \
+    MH_STATUS name##CreateStatus = MH_CreateHook((LPVOID*)addressSet[#name], (LPVOID)name##Hook, (LPVOID*)&name); \
     if (name##CreateStatus != MH_OK) {                                                                    \
         spdlog::error("create hook fail {}: {}", STRING(name), STRING(name##CreateStatus));               \
         exit(1);                     \
