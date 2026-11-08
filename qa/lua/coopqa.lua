@@ -163,6 +163,7 @@ function M.state(sections)
 		s.heliSpace = try(TppMission.IsHelicopterSpace, vars.missionCode)
 	end
 	s.inMission = M.inMission()
+	s.saveFile = TppDefine and TppDefine.GAME_SAVE_FILE_NAME -- per copy (dynamite/instance.txt)
 	if want.players then
 		trace("players")
 		s.players = M.players() -- raises outside a mission: the caller asked for something unsafe

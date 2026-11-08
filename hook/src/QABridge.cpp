@@ -8,6 +8,7 @@
 #include "spdlog/spdlog.h"
 
 #include "QABridgeCore.h"
+#include "SecondInstance.h"
 
 #include <windows.h>
 
@@ -134,6 +135,11 @@ namespace Dynamite::QA {
 
     int l_QAMemberCount(lua_State *L) {
         lua_pushinteger(L, g_hook->dynamiteCore.GetMemberCount());
+        return 1;
+    }
+
+    int l_InstanceId(lua_State *L) {
+        lua_pushstring(L, InstanceIdUtf8().c_str());
         return 1;
     }
 

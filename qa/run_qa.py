@@ -295,6 +295,12 @@ def bring_up_session(cfg, log, run_dir, started, skip_connect=False):
     client.start()
     client.connect_bridge(t["bridge"])
     wait_title(cfg, client, heli, "CLIENT window (game copy 2)")
+    # Assert the setup before testing anything: copies sharing one save load each other's progress
+    # (2026-11-09: the client came up in the host's mission instead of the helicopter).
+    hs, cs = host.state().get("saveFile"), client.state().get("saveFile")
+    log("save files: host", hs, "client", cs)
+    if not hs or hs == cs:
+        raise TestFailure("host and client use the same save file %r; give the client its own (qa/instance_saves.py)" % hs)
     if skip_connect:
         log("TWIN: client does NOT call CreateClientSession")
     else:

@@ -190,6 +190,21 @@ _.MGO_MAIN_SAVE_FILE_NAME = "MGO_MAIN_DATA"
 _.CONFIG_SAVE_FILE_NAME = "DYNAMITE_CONFIG_DATA"
 _.MGO_SAVE_FILE_NAME = "MGO_GAME_DATA"
 _.PERSONAL_DATA_SAVE_FILE_NAME = "DYNAMITE_PERSONAL_DATA"
+-- Test copies on one PC (dynamite/instance.txt, see hook/src/InstanceName.h) keep their own save files,
+-- or both copies load and overwrite the same DYNAMITE_* saves. "DYN" .. id .. "_" keeps names no longer
+-- than the DYNAMITE_ ones. Normal play has no instance id and keeps the names above.
+do
+	local ok, id = pcall(function()
+		return Dynamite.InstanceId()
+	end)
+	if ok and type(id) == "string" and id ~= "" then
+		local p = "DYN" .. id .. "_"
+		_.GAME_SAVE_FILE_NAME = p .. "GAME_DATA"
+		_.GAME_SAVE_FILE_NAME_TMP = p .. "GAME_DATA_TMP"
+		_.CONFIG_SAVE_FILE_NAME = p .. "CONFIG_DATA"
+		_.PERSONAL_DATA_SAVE_FILE_NAME = p .. "PERSONAL_DATA"
+	end
+end
 _.CATEGORY_MISSION_RESTARTABLE = 2
 _.SAVE_FILE_INFO = {
 	[TppScriptVars.CATEGORY_GAME_GLOBAL] = { version = 107, slot = _.SAVE_SLOT.GLOBAL },

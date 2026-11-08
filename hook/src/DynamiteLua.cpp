@@ -499,6 +499,7 @@ namespace Dynamite {
             {"QAEvent", QA::l_QAEvent},
             {"QAMemberCount", QA::l_QAMemberCount},
             {"QAPlayerPos", QA::l_QAPlayerPos},
+            {"InstanceId", QA::l_InstanceId},
             {nullptr, nullptr},
         };
         luaI_openlib(L, "Dynamite", libFuncs, 0);

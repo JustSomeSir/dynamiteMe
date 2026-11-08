@@ -21,6 +21,8 @@ namespace Dynamite::QA {
     // Lua: Dynamite.QAMemberCount() -> int, Dynamite.QAPlayerPos(i) -> x, y, z
     int l_QAMemberCount(lua_State *L);
     int l_QAPlayerPos(lua_State *L);
+    // test copies: instance id from dynamite/instance.txt, "" for normal play
+    int l_InstanceId(lua_State *L);
 } // namespace Dynamite::QA
 
 #endif

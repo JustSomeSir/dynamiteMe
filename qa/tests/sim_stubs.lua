@@ -41,6 +41,8 @@ end
 
 vars = { missionCode = 1, playerPosX = 0, playerPosY = 0, playerPosZ = 0, playerLife = 6000 }
 TppDefine = { MISSION_CLEAR_TYPE = { FROM_HELISPACE = 7 }, STORY_MISSION_CLUSTER_ID = { [10020] = 3 } }
+-- each copy has its own save unless QA_SIM_SHARED_SAVE (the bug seen on 2026-11-09)
+TppDefine.GAME_SAVE_FILE_NAME = (role == "client" and not os.getenv("QA_SIM_SHARED_SAVE")) and "DYN2_GAME_DATA" or "DYNAMITE_GAME_DATA"
 TppMission = {
 	IsHelicopterSpace = function(c)
 		return c == 40010 or c == 40020

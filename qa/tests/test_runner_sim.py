@@ -84,6 +84,7 @@ def main():
         scenario(exe, "good", {}, True, "positions  twin  ok", twins=True),
         scenario(exe, "desync", {"client": {"QA_SIM_DESYNC": "1"}}, False, "player 0 differs", twins=False),
         scenario(exe, "noconnect", {"client": {"QA_SIM_NOCONNECT": "1"}}, False, "could not connect", twins=False),
+        scenario(exe, "sharedsave", {"client": {"QA_SIM_SHARED_SAVE": "1"}}, False, "same save file", twins=False),
         scenario(exe, "crash", {"client": {"QA_SIM_CRASH_IN_MISSION": "1"}}, False, "[stability]: client", twins=False),
     ]
     shutil.rmtree(bdir, ignore_errors=True)

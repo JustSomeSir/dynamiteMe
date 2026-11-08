@@ -39,6 +39,10 @@ namespace Dynamite {
         }
     } // namespace
 
+    std::string InstanceIdUtf8() {
+        return {g_instanceId.begin(), g_instanceId.end()}; // SanitizeInstanceId keeps ASCII only
+    }
+
     void SetupTestTransport() {
         // Test-only: tools/steamproxy in hook mode. Present only in test copies, next to mgsvtpp.exe.
         if (GetFileAttributesW(L"steam_proxy.ini") == INVALID_FILE_ATTRIBUTES) {
