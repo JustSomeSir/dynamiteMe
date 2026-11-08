@@ -4,6 +4,9 @@
 #include "DynamiteHook.h"
 #include "DynamiteSyncSchema_generated.h"
 #include "EmblemInfo.h"
+#include "MessageValidation.h"
+#include "Tpp/BossQuietActionCommand.h"
+#include "Tpp/BossQuietActionTask.h"
 #include "Tpp/BossQuietDamage.h"
 #include "flatbuffers/flatbuffers.h"
 #include "memtag.h"
@@ -1279,6 +1282,11 @@ namespace Dynamite {
             spdlog::info("{}, size={}, dump={}", __PRETTY_FUNCTION__, size, bytes);
         }
 
+        if (buffer == nullptr || size < 0 || static_cast<size_t>(size) < sizeof(DYNAMITE_RAW_HEADER)) {
+            spdlog::error("{}, incoming packet is too small ({})", __PRETTY_FUNCTION__, size);
+            return false;
+        }
+
         if ((size - sizeof(DYNAMITE_RAW_HEADER)) > sizeof(this->updateBuffer)) {
             spdlog::error("{}, incoming packet is too big ({})", __PRETTY_FUNCTION__, size);
             return false;
@@ -1288,7 +1296,7 @@ namespace Dynamite {
         memset(this->updateBuffer, 0, sizeof(this->updateBuffer));
         memcpy(this->updateBuffer, (char *)buffer + sizeof(DYNAMITE_RAW_HEADER), buflen);
 
-        auto verifier = flatbuffers::Verifier((uint8_t *)this->updateBuffer, sizeof(this->updateBuffer));
+        auto verifier = flatbuffers::Verifier((uint8_t *)this->updateBuffer, buflen);
         auto ok = DynamiteMessage::VerifyMessageWrapperBuffer(verifier);
         if (!ok) {
             spdlog::error("{}, message wrapper verification failed", __PRETTY_FUNCTION__);
@@ -1296,6 +1304,15 @@ namespace Dynamite {
         }
 
         auto wrapper = DynamiteMessage::GetMessageWrapper(this->updateBuffer);
+        static constexpr MessageLimits limits{
+            .bossQuietActionCommandSize = sizeof(BossQuietActionCommand),
+            .bossQuietActionTaskSize = sizeof(BossQuietActionTask),
+        };
+        if (const auto reason = ValidateMessage(wrapper, limits); reason != nullptr) {
+            spdlog::error("{}, dropping packet: {}", __PRETTY_FUNCTION__, reason);
+            return false;
+        }
+
         if (wrapper->packet_num() <= packetSeen) {
             spdlog::info("{}, incoming packet {}, have {}, ignoring", __PRETTY_FUNCTION__, wrapper->packet_num(), packetSeen);
             return false;
