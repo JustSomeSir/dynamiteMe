@@ -102,6 +102,28 @@ int main(int argc, char **argv) {
     uint64_t idP = 0;
     uint64_t *r = ((VGetIdF)(*(void ***)pUser)[2])(pUser, &idP);
     CHECK(idP == kFake && r == &idP, "wrapped GetSteamID returns fake_steam_id");
+    // GetAuthSessionTicket is vtable[13]: a ticket made through it carries our id at +12, like the
+    // flat API's ticket. Through the proxy (fake id) +12 must hold the fake id.
+    {
+        using VTicketF = uint32_t (*)(void *, void *, int, uint32_t *);
+        using FlatTicketF = uint32_t (*)(void *, void *, int, uint32_t *);
+        using FlatCancelF = void (*)(void *, uint32_t);
+        auto flatTicket = (FlatTicketF)GetProcAddress(real, "SteamAPI_ISteamUser_GetAuthSessionTicket");
+        auto flatCancel = (FlatCancelF)GetProcAddress(real, "SteamAPI_ISteamUser_CancelAuthTicket");
+        uint8_t t1[1024], t2[1024], t3[1024];
+        uint32_t n1 = 0, n2 = 0, n3 = 0;
+        const uint32_t h1 = flatTicket(realUser, t1, sizeof(t1), &n1);
+        const uint32_t h2 = ((VTicketF)(*(void ***)realUser)[13])(realUser, t2, sizeof(t2), &n2);
+        uint64_t id1 = 0, id2 = 0, id3 = 0;
+        if (n1 >= 20) std::memcpy(&id1, t1 + 12, 8);
+        if (n2 >= 20) std::memcpy(&id2, t2 + 12, 8);
+        std::printf("     ticket flat: %u bytes, +12=%llu; vtable[13]: %u bytes, +12=%llu\n", n1, (unsigned long long)id1, n2, (unsigned long long)id2);
+        CHECK(id1 == idFlat && id2 == idFlat && n2 > 20, "ISteamUser vtable[13] is GetAuthSessionTicket; SteamID at +12");
+        const uint32_t h3 = ((VTicketF)(*(void ***)pUser)[13])(pUser, t3, sizeof(t3), &n3);
+        if (n3 >= 20) std::memcpy(&id3, t3 + 12, 8);
+        CHECK(id3 == kFake, "proxy ticket carries fake_steam_id at +12");
+        for (uint32_t h : {h1, h2, h3}) if (flatCancel && h) flatCancel(realUser, h);
+    }
     const bool loggedReal = ((VBoolF)(*(void ***)realUser)[1])(realUser);
     const bool loggedProxy = ((VBoolF)(*(void ***)pUser)[1])(pUser);
     CHECK(loggedReal && loggedProxy, "BLoggedOn forwarded through thunk");

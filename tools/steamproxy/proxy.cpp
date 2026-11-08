@@ -55,6 +55,8 @@ namespace {
     constexpr int kNetVtableSize = 22;       // ISteamNetworking005
     constexpr int kUserVtableCopy = 32;      // >= ISteamUser018 method count; unused slots are never called
     constexpr int kUserGetSteamID = 2;       // GetHSteamUser, BLoggedOn, GetSteamID
+    constexpr int kUserGetAuthSessionTicket = 13; // ISteamUser017/018; checked by selftest against the flat API
+    constexpr size_t kTicketSteamIdOffset = 12;   // where fuse (local master server) reads the SteamID
 
     HMODULE g_real = nullptr;
     std::wstring g_dir;
@@ -273,15 +275,38 @@ namespace {
         return ret;
     }
 
+    // fuse logs a player in as the SteamID it reads from the auth ticket, not GetSteamID. With a
+    // fake id the client copy must present it there too, or both copies are one account on fuse.
+    uint32_t __cdecl User_GetAuthSessionTicket(UserWrap *w, void *ticket, int cbMax, uint32_t *cbOut) {
+        using F = uint32_t (*)(void *, void *, int, uint32_t *);
+        const uint32_t h = ((F)(*(void ***)w->real)[kUserGetAuthSessionTicket])(w->real, ticket, cbMax, cbOut);
+        const uint32_t n = cbOut ? *cbOut : 0;
+        if (ticket && n >= kTicketSteamIdOffset + 8) {
+            uint64_t inTicket = 0;
+            std::memcpy(&inTicket, (uint8_t *)ticket + kTicketSteamIdOffset, 8);
+            const uint64_t real = RealSteamId();
+            if (inTicket == real) {
+                std::memcpy((uint8_t *)ticket + kTicketSteamIdOffset, &g_fakeId, 8);
+                Log("GetAuthSessionTicket: %u bytes, SteamID at +12 replaced %llu -> %llu", n, (unsigned long long)inTicket, (unsigned long long)g_fakeId);
+            } else {
+                Log("GetAuthSessionTicket: %u bytes, +12 holds %llu, not the real id %llu: left as is", n, (unsigned long long)inTicket,
+                    (unsigned long long)real);
+            }
+        }
+        return h;
+    }
+
     uint64_t RealSteamId() {
         using GetUser = void *(*)();
         using FlatGetId = uint64_t (*)(void *);
         static GetUser realUser = Real<GetUser>("SteamUser");
         static FlatGetId flatGetId = Real<FlatGetId>("SteamAPI_ISteamUser_GetSteamID");
+        static uint64_t cached = 0;
+        if (cached) return cached;
         void *u = realUser ? realUser() : nullptr;
-        const uint64_t id = (u && flatGetId) ? flatGetId(u) : 0;
-        Log("real SteamID %llu", (unsigned long long)id);
-        return id;
+        cached = (u && flatGetId) ? flatGetId(u) : 0;
+        Log("real SteamID %llu", (unsigned long long)cached);
+        return cached;
     }
 } // namespace
 
@@ -487,6 +512,7 @@ BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID) {
         Log("net vtable built");
         for (int i = 0; i < kUserVtableCopy; i++) g_userVtbl[i] = sp_fwd_table[i];
         g_userVtbl[kUserGetSteamID] = (void *)&User_GetSteamID;
+        g_userVtbl[kUserGetAuthSessionTicket] = (void *)&User_GetAuthSessionTicket;
         Log("user vtable built; steamproxy loaded");
 #ifdef SP_HOOK_MODE
         InstallHooks();
