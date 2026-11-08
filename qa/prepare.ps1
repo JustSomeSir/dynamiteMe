@@ -8,6 +8,15 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
+# Windows PowerShell 5.1 turns a native program's stderr into a terminating error under "Stop"
+# (go and dynamite.exe log to stderr). Run them with "Continue" and judge by the exit code only.
+function Invoke-Native([string]$What, [string]$Log, [scriptblock]$Cmd) {
+    $old = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try { & $Cmd *> $Log } finally { $ErrorActionPreference = $old }
+    if ($LASTEXITCODE -ne 0) { throw "$What failed (exit $LASTEXITCODE), see $Log" }
+}
+
 $zip = Join-Path "$Root\build" $Package
 if (-not (Test-Path $zip)) { throw "package not found: $zip" }
 $src = "$Root\build\dynamiteMe-qa"
@@ -18,11 +27,9 @@ Push-Location $src
 try {
     $env:CGO_ENABLED = "0"
     Write-Host "== go generate"
-    go generate . *> "$Root\build\qa-gen.log"
-    if ($LASTEXITCODE -ne 0) { throw "go generate failed, see $Root\build\qa-gen.log" }
+    Invoke-Native "go generate" "$Root\build\qa-gen.log" { go generate . }
     Write-Host "== go build"
-    go build -trimpath -ldflags="-w -s" -o dynamite.exe . *> "$Root\build\qa-build.log"
-    if ($LASTEXITCODE -ne 0) { throw "go build failed, see $Root\build\qa-build.log" }
+    Invoke-Native "go build" "$Root\build\qa-build.log" { go build -trimpath -ldflags="-w -s" -o dynamite.exe . }
 } finally { Pop-Location }
 
 foreach ($g in "game", "game2") {
@@ -34,8 +41,7 @@ foreach ($g in "game", "game2") {
     Write-Host "== install into $dir"
     Push-Location $dir
     try {
-        & "$dir\dynamite.exe" -installNow -forceInstall -installAndExit *> "$Root\build\qa-install-$g.log"
-        if ($LASTEXITCODE -ne 0) { throw "install into $dir failed (exit $LASTEXITCODE), see $Root\build\qa-install-$g.log" }
+        Invoke-Native "install into $dir" "$Root\build\qa-install-$g.log" { & "$dir\dynamite.exe" -installNow -forceInstall -installAndExit }
     } finally { Pop-Location }
     $h = (Get-FileHash "$dir\dinput8.dll" -Algorithm SHA256).Hash.ToLower()
     Write-Host "   dinput8.dll $h"
