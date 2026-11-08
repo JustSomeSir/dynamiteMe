@@ -7,7 +7,7 @@
 #include "lua/lua.h"
 #include "spdlog/spdlog.h"
 
-#include "coopbridge/server.h"
+#include "QABridgeCore.h"
 
 #include <windows.h>
 
@@ -20,72 +20,15 @@
 namespace Dynamite::QA {
     namespace {
         bool g_enabled = false;
-        lua_State *g_L = nullptr; // set only while QAPump runs; arg 1 on its stack is the dispatcher
 
-        // Calls dispatch(kind, arg) in Lua and returns its string result.
-        // Contract with lua/coopqa.lua: dispatch never raises and always returns a string whose
-        // first byte is '1' (ok) or '0' (error), followed by JSON (ok) or a message (error).
-        // Only Lua C functions with 1.0.15.4 addresses are used: pushvalue, pushstring, pcall,
-        // checklstring, remove. The stack is left as it was.
-        std::string CallDispatch(const char *kind, const std::string &arg) {
-            lua_State *L = g_L;
-            if (L == nullptr) {
-                throw coopbridge::Error(-32011, "no Lua state (QAPump is not running)");
-            }
-            lua_pushvalue(L, 1);           // dispatch
-            lua_pushstring(L, kind);       // kind
-            lua_pushstring(L, arg.c_str()); // arg
-            const int rc = lua_pcall(L, 2, 1, 0);
-            size_t n = 0;
-            const char *s = luaL_checklstring(L, -1, &n); // a string in both outcomes (see contract)
-            std::string out(s ? s : "", s ? n : 0);
-            lua_remove(L, -1);
-            if (rc != 0) {
-                throw coopbridge::Error(-32012, "Lua error: " + out);
-            }
-            if (out.empty() || (out[0] != '1' && out[0] != '0')) {
-                throw coopbridge::Error(-32013, "bad reply from coopqa.dispatch");
-            }
-            if (out[0] == '0') {
-                throw coopbridge::Error(-32014, out.substr(1));
-            }
-            return out.substr(1);
-        }
+        // The game's Lua C functions (1.0.15.4 addresses); see QABridgeCore.h.
+        void PushValue(lua_State *L, int i) { lua_pushvalue(L, i); }
+        void PushString(lua_State *L, const char *str) { lua_pushstring(L, str); }
+        int PCall(lua_State *L, int a, int r, int e) { return lua_pcall(L, a, r, e); }
+        const char *CheckLString(lua_State *L, int i, size_t *n) { return luaL_checklstring(L, i, n); }
+        void Remove(lua_State *L, int i) { lua_remove(L, i); }
 
-        coopbridge::json::Value ParseJson(const std::string &text) {
-            coopbridge::json::Value v;
-            std::string err;
-            if (!coopbridge::json::parse(text, v, err)) {
-                throw coopbridge::Error(-32015, "coopqa returned invalid JSON: " + err);
-            }
-            return v;
-        }
-
-        class LuaAdapter : public coopbridge::Adapter {
-          public:
-            coopbridge::Capabilities capabilities() const override {
-                coopbridge::Capabilities c;
-                c.exec = c.eval = c.state = true;
-                return c;
-            }
-
-            // A Lua chunk; its return values (JSON-encoded by coopqa) are the output.
-            coopbridge::ExecResult Exec(const std::string &line, const std::string &) override { return {true, CallDispatch("exec", line)}; }
-
-            // A Lua expression; the result is the JSON value.
-            coopbridge::json::Value Eval(const std::string &expr, const std::string &) override { return ParseJson(CallDispatch("eval", expr)); }
-
-            coopbridge::json::Value State(const std::vector<std::string> &sections) override {
-                std::string joined;
-                for (const auto &s : sections) {
-                    if (!joined.empty()) joined += ",";
-                    joined += s;
-                }
-                return ParseJson(CallDispatch("state", joined));
-            }
-        };
-
-        LuaAdapter g_adapter;
+        LuaAdapter g_adapter(LuaApi{&PushValue, &PushString, &PCall, &CheckLString, &Remove});
         coopbridge::Server *g_server = nullptr; // leaked on purpose: lives until process exit
 
         int ReadPort() {
@@ -138,13 +81,13 @@ namespace Dynamite::QA {
 
     int l_QAPump(lua_State *L) {
         if (!g_enabled) return 0;
-        g_L = L;
+        g_adapter.Bind(L, 1); // Dynamite.QAPump(dispatch): dispatch is argument 1
         try {
             g_server->Pump();
         } catch (const std::exception &e) {
             spdlog::error("qa bridge: pump: {}", e.what());
         }
-        g_L = nullptr;
+        g_adapter.Unbind();
         return 0;
     }
 

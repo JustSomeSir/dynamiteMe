@@ -4,40 +4,11 @@ package.path = arg[1] .. "/?.lua;" .. package.path
 
 local pumped = 0
 local pumpFn = nil
-Dynamite = {
-	QAPump = function(f)
-		pumped = pumped + 1
-		pumpFn = f
-	end,
-	IsHost = function()
-		return true
-	end,
-	IsClient = function()
-		return false
-	end,
-	QAMemberCount = function()
-		return 2
-	end,
-	QAPlayerPos = function(i)
-		return 10 + i, 20.5, -30
-	end,
-	IsSynchronized = function()
-		error("boom") -- a failing game call must not break state()
-	end,
-	CreateClientSession = function() end,
-}
-vars = { missionCode = 40010, playerPosX = 1, playerPosY = 2, playerPosZ = 3, playerLife = 6000 }
-local reserved = nil
-TppDefine = { MISSION_CLEAR_TYPE = { FROM_HELISPACE = 7 }, STORY_MISSION_CLUSTER_ID = { [10020] = 3 } }
-TppMission = {
-	IsHelicopterSpace = function(c)
-		return c == 40010 or c == 40020
-	end,
-	ReserveMissionClear = function(t)
-		reserved = t
-		return true
-	end,
-}
+dofile(arg[1] .. "/../tests/stubs.lua")
+Dynamite.QAPump = function(f)
+	pumped = pumped + 1
+	pumpFn = f
+end
 
 local qa = require("coopqa")
 local failures = 0
@@ -72,6 +43,7 @@ check(string.sub(reply("exec", "error('nope')"), 1, 1) == "0", "runtime error is
 check(string.sub(reply("exec", "this is not lua"), 1, 7) == "0compil", "compile error is reported")
 check(string.sub(reply("bogus", ""), 1, 1) == "0", "unknown kind")
 check(reply("eval", "CoopQA.startMission(10020).ok") == "1true", "startMission from heli")
+local reserved = QA_STUB.reserved
 check(reserved and reserved.nextMissionId == 10020 and reserved.missionClearType == 7 and reserved.nextClusterId == 3, "ReserveMissionClear args")
 vars.missionCode = 10020
 check(reply("eval", "CoopQA.startMission(10020).ok") == "1false", "startMission refuses outside heli")
