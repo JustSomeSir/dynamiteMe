@@ -97,7 +97,38 @@ local function try(f, ...)
 	return nil
 end
 
+-- Player positions come from PlayerInfoService, which hung the game on the title screen
+-- (1.0.15.4, 2026-11-09). Only ask inside a real mission: not the title (1), not helicopter space.
+function M.inMission()
+	if not vars or not vars.missionCode then
+		return false
+	end
+	local c = vars.missionCode
+	if c < 10000 then -- 1 = init/title; story missions are 10xxx, free roam 30xxx, heli 40xxx
+		return false
+	end
+	if TppMission and TppMission.IsHelicopterSpace and TppMission.IsHelicopterSpace(c) then
+		return false
+	end
+	return true
+end
+
+M.traced = {}
+local function trace(step)
+	-- the first state() in each mission logs its steps, so a hang shows where it stopped
+	local key = vars and vars.missionCode or -1
+	if M.traced[key] == "done" then
+		return
+	end
+	if Dynamite and Dynamite.Log then
+		pcall(Dynamite.Log, "coopqa: state step " .. step .. " (mission " .. tostring(key) .. ")")
+	end
+end
+
 function M.players()
+	if not M.inMission() then
+		error("players are only available inside a mission (mission " .. tostring(vars and vars.missionCode) .. ")", 0)
+	end
 	local out = {}
 	local n = try(Dynamite.QAMemberCount) or 1
 	for i = 0, n - 1 do
@@ -110,10 +141,16 @@ function M.players()
 end
 
 function M.state(sections)
+	local want = {}
+	for _, name in ipairs(sections or {}) do
+		want[name] = true
+	end
 	local s = {}
+	trace("begin")
 	s.qaVersion = M.version
 	s.frame = M.frame
 	s.mission = vars and vars.missionCode or nil
+	trace("dynamite")
 	s.isHost = try(Dynamite.IsHost)
 	s.isClient = try(Dynamite.IsClient)
 	s.members = try(Dynamite.QAMemberCount)
@@ -124,10 +161,17 @@ function M.state(sections)
 	if TppMission and vars then
 		s.heliSpace = try(TppMission.IsHelicopterSpace, vars.missionCode)
 	end
-	s.players = M.players()
+	s.inMission = M.inMission()
+	if want.players then
+		trace("players")
+		s.players = M.players() -- raises outside a mission: the caller asked for something unsafe
+	end
+	trace("vars")
 	if vars then
 		s.self = { x = vars.playerPosX, y = vars.playerPosY, z = vars.playerPosZ, life = vars.playerLife }
 	end
+	trace("end")
+	M.traced[vars and vars.missionCode or -1] = "done"
 	return s
 end
 

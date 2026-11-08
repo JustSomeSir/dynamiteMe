@@ -146,10 +146,14 @@ class Copy:
             time.sleep(1)
         raise TestFailure("%s: no bridge after %ds (coopqa.ini missing? hook not loaded?)" % (self.name, timeout_s))
 
-    def state(self):
+    def state(self, players=False):
+        """players=True only inside a mission: positions hang the game on the title screen."""
         self.must_live()
         # short per-request timeout: during loads the game runs no Lua frames and can't answer
-        st = self.bridge.call("state", {"timeoutMs": 5000}, timeout_s=10)
+        params = {"timeoutMs": 5000}
+        if players:
+            params["sections"] = ["players"]
+        st = self.bridge.call("state", params, timeout_s=10)
         st["_t"] = time.time()
         self.states.append(st)
         return st
@@ -317,7 +321,7 @@ def assert_mode(host, client, log):
 def assert_positions(host, client, log, tolerance_m, partner_index_shift=0):
     """Each side sees both players where the other side says they are. Both players stand still."""
     fails = []
-    hs, cs = host.state(), client.state()
+    hs, cs = host.state(players=True), client.state(players=True)
     hp = {p["index"]: p for p in hs.get("players", [])}
     cp = {p["index"]: p for p in cs.get("players", [])}
     if len(hp) < 2 or len(cp) < 2:

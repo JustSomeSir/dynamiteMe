@@ -32,6 +32,13 @@ local function reply(kind, arg)
 end
 
 check(string.sub(reply("state", ""), 1, 1) == "1", "state ok")
+check(not string.find(reply("state", ""), '"players"'), "state without sections has no players (unsafe outside missions)")
+check(string.sub(reply("state", "players"), 1, 1) == "0", "players refused in helicopter space")
+vars.missionCode = 1
+check(string.sub(reply("eval", "CoopQA.players()"), 1, 1) == "0", "players refused on the title screen")
+vars.missionCode = 10020
+check(string.find(reply("state", "players"), '"players":%[') ~= nil, "players inside a mission")
+vars.missionCode = 40010
 check(string.sub(reply("eval", "1+2"), 1, 1) == "1", "eval ok")
 check(reply("eval", "1+2") == "13", "eval value")
 check(reply("eval", "'a\"b\\n'") == '1"a\\"b\\n"', "string escaping")

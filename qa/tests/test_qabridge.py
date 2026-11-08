@@ -78,7 +78,16 @@ def run_checks(exe, bridge):
 
             st = g.state()
             check(st.get("members") == 2 and st.get("mission") == 40010 and st.get("isHost") is True, "state() from coopqa via Lua")
-            check(len(st.get("players", [])) == 2 and st["players"][1]["x"] == 11, "state players and positions")
+            check("players" not in st, "no positions unless asked (they hang the title screen)")
+            try:
+                g.state(["players"])
+                check(False, "positions refused in helicopter space")
+            except RpcError as e:
+                check("only available inside a mission" in str(e), "positions refused in helicopter space")
+            g.exec("vars.missionCode = 10020")
+            sp = g.state(["players"])
+            check(len(sp.get("players", [])) == 2 and sp["players"][1]["x"] == 11, "state players and positions in a mission")
+            g.exec("vars.missionCode = 40010")
             check("synchronized" not in st, "failing game call left out of state, not fatal")
 
             check(g.eval("1+2") == 3, "eval number")
