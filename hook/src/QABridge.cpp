@@ -102,6 +102,14 @@ namespace Dynamite::QA {
         if (firstPump) {
             firstPump = false;
             ExceptionSelfTest("first pump, main thread");
+            // Every Lua function the pump calls must be bound (SetFuncPtrs runs after Setup): lua_remove
+            // had an address but was never assigned, and calling the null pointer froze the game (2026-11-09).
+            if (!lua_pushvalue || !lua_pushstring || !lua_pcall || !luaL_checklstring || !lua_remove || !lua_pushinteger ||
+                !lua_pushnumber || !luaL_checkinteger) {
+                spdlog::error("qa bridge: a Lua function pointer is not set for this game version; bridge disabled");
+                g_enabled = false;
+                return 0;
+            }
         }
         g_adapter.Bind(L, 1); // Dynamite.QAPump(dispatch): dispatch is argument 1
         const auto servedBefore = g_server->stats().served;

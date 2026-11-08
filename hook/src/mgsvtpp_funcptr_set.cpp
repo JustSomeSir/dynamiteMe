@@ -17,6 +17,7 @@ namespace Dynamite {
         lua_toboolean = (lua_tobooleanFunc *)addressSet["lua_toboolean"];
         lua_createtable = (lua_createtableFunc *)addressSet["lua_createtable"];
         lua_pushvalue = (lua_pushvalueFunc *)addressSet["lua_pushvalue"];
+        lua_remove = (lua_removeFunc *)addressSet["lua_remove"];
         luaL_checklstring = (luaL_checklstringFunc *)addressSet["luaL_checklstring"];
         lua_pushnumber = (lua_pushnumberFunc *)addressSet["lua_pushnumber"];
 
