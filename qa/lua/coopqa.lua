@@ -199,6 +199,23 @@ function M.connect()
 end
 
 -- ---------------------------------------------------------------- dispatcher
+-- In MGSV the chunks from loadstring get the thread's globals, not this module's environment, so a
+-- global set here (CoopQA) was nil in eval (2026-11-09). Each chunk runs in a table that has CoopQA and
+-- falls back to this module's environment (vars, TppMission, Dynamite, ...).
+local moduleEnv = getfenv and getfenv(1) or _G
+local chunkEnv = setmetatable({ CoopQA = M }, { __index = moduleEnv })
+
+local function compile(code)
+	local f, err = loadstring(code, "=qa.chunk")
+	if not f then
+		error("compile: " .. tostring(err), 0)
+	end
+	if setfenv then
+		setfenv(f, chunkEnv)
+	end
+	return f
+end
+
 local function run(kind, arg)
 	if kind == "state" then
 		local sections = {}
@@ -207,17 +224,9 @@ local function run(kind, arg)
 		end
 		return encode(M.state(sections))
 	elseif kind == "eval" then
-		local f, err = loadstring("return " .. arg, "=qa.eval")
-		if not f then
-			error("compile: " .. tostring(err), 0)
-		end
-		return encode(f())
+		return encode(compile("return " .. arg)())
 	elseif kind == "exec" then
-		local f, err = loadstring(arg, "=qa.exec")
-		if not f then
-			error("compile: " .. tostring(err), 0)
-		end
-		return encode({ f() })
+		return encode({ compile(arg)() })
 	end
 	error("unknown kind " .. tostring(kind), 0)
 end

@@ -10,7 +10,13 @@ Dynamite.QAPump = function(f)
 	pumpFn = f
 end
 
-local qa = require("coopqa")
+-- MGSV loads scripts with their own environment; loadstring chunks get the thread's globals instead.
+-- Load coopqa the same way so eval/exec must still see CoopQA (failed in the game on 2026-11-09).
+local chunk = assert(loadfile(arg[1] .. "/coopqa.lua"))
+local sandbox = setmetatable({}, { __index = _G })
+sandbox._G = sandbox
+setfenv(chunk, sandbox)
+local qa = chunk()
 local failures = 0
 local function check(cond, what)
 	if not cond then
@@ -22,7 +28,7 @@ end
 qa.Update()
 qa.Update()
 check(pumped == 2 and pumpFn == qa.dispatch, "Update pumps once per frame with the dispatcher")
-check(CoopQA == qa, "module is reachable as CoopQA")
+check(sandbox.CoopQA == qa and rawget(_G, "CoopQA") == nil, "CoopQA is set in the module environment only")
 vars.missionCode = 1
 qa.Update()
 check(pumped == 2, "no pumping on the title screen (mission 1)")
@@ -45,6 +51,7 @@ check(string.find(reply("state", "players"), '"players":%[') ~= nil, "players in
 vars.missionCode = 40010
 check(string.sub(reply("eval", "1+2"), 1, 1) == "1", "eval ok")
 check(reply("eval", "1+2") == "13", "eval value")
+check(reply("eval", "CoopQA.version") == "11", "eval chunks see CoopQA")
 check(reply("eval", "'a\"b\\n'") == '1"a\\"b\\n"', "string escaping")
 check(reply("eval", "{1,2,{x=3}}") == '1[1,2,{"x":3}]', "nested tables")
 check(reply("eval", "0/0") == "1null", "nan is null")
