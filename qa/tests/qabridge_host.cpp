@@ -113,6 +113,22 @@ int main(int argc, char **argv) {
     }
 
     for (;;) {
+        // optional simulation tick (qa/tests/sim_stubs.lua): fakes title, loads and connects
+        lua_getglobal(L, "QA_SIM_TICK");
+        if (lua_isfunction(L, -1)) {
+            if (lua_pcall(L, 0, 0, 0) != 0) {
+                std::fprintf(stderr, "sim tick: %s\n", lua_tostring(L, -1));
+                lua_pop(L, 1);
+            }
+        } else {
+            lua_pop(L, 1);
+        }
+        lua_getglobal(L, "QA_SIM_EXIT");
+        if (lua_isnumber(L, -1)) {
+            return (int)lua_tointeger(L, -1); // simulated crash
+        }
+        lua_pop(L, 1);
+
         lua_getglobal(L, "QA_MODULE");
         lua_getfield(L, -1, "Update");
         if (lua_pcall(L, 0, 0, 0) != 0) {
