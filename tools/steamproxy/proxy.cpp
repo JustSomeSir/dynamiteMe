@@ -70,6 +70,24 @@ namespace {
         SetLastError(savedErr);
     }
 
+    // Plain WriteFile, no CRT: used before anything else can fail.
+    void RawLog(const char *s) {
+        if (g_log == INVALID_HANDLE_VALUE) return;
+        DWORD w;
+        WriteFile(g_log, s, (DWORD)strlen(s), &w, nullptr);
+    }
+
+    HMODULE g_module = nullptr;
+    // Active only during DllMain: records where an exception happened (offset from module base).
+    LONG CALLBACK InitCrashLogger(EXCEPTION_POINTERS *e) {
+        char buf[200];
+        const auto rip = (uintptr_t)e->ExceptionRecord->ExceptionAddress;
+        snprintf(buf, sizeof(buf), "dllmain: exception 0x%08lx at %p (module+0x%llx)\r\n", e->ExceptionRecord->ExceptionCode, (void *)rip,
+            (unsigned long long)(rip - (uintptr_t)g_module));
+        RawLog(buf);
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+
     // ---------------- real DLL ----------------
     template <typename T> T Real(const char *name) {
         if (!g_real) {
@@ -332,6 +350,7 @@ extern "C" void __cdecl SteamAPI_RunCallbacks() {
 
 BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) {
+        g_module = h;
         DisableThreadLibraryCalls(h);
         InitializeCriticalSection(&g_logLock);
         wchar_t path[MAX_PATH];
@@ -341,10 +360,15 @@ BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID) {
         wchar_t logPath[MAX_PATH + 64];
         swprintf(logPath, MAX_PATH + 64, L"%ls\\steamproxy-%lu.log", g_dir.c_str(), GetCurrentProcessId());
         g_log = CreateFileW(logPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        RawLog("dllmain: log open\r\n");
+        void *veh = AddVectoredExceptionHandler(1, &InitCrashLogger);
+        Log("steamproxy loading into pid %lu, module base %p", GetCurrentProcessId(), (void *)h);
         BuildNetVtable();
+        Log("net vtable built");
         for (int i = 0; i < kUserVtableCopy; i++) g_userVtbl[i] = sp_fwd_table[i];
         g_userVtbl[kUserGetSteamID] = (void *)&User_GetSteamID;
-        Log("steamproxy loaded into pid %lu", GetCurrentProcessId());
+        Log("user vtable built; steamproxy loaded");
+        RemoveVectoredExceptionHandler(veh);
     }
     return TRUE;
 }

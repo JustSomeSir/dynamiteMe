@@ -72,6 +72,7 @@ int main() {
     using VBoolF = bool (*)(void *);
 
     HMODULE proxy = LoadLibraryW(L"steam_api64.dll");
+    if (!proxy) std::printf("     LoadLibrary error %lu\n", GetLastError());
     CHECK(proxy != nullptr, "load proxy steam_api64.dll");
     if (!proxy) return 1;
     auto init = (InitF)GetProcAddress(proxy, "SteamAPI_Init"); // forwarded export

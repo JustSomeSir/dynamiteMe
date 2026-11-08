@@ -22,7 +22,9 @@ sp_fwd_\idx:
 
     .section .rdata,"dr"
     .globl sp_fwd_table
-    .p2align 3
+    # 32-byte aligned: C++ sees `void *const[32]` and the x64 ABI lets the compiler assume 16-byte
+    # alignment for arrays this big, so it copies the table with movaps (crashed at 8-byte alignment).
+    .p2align 5
 sp_fwd_table:
     .irp i, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
     .quad sp_fwd_\i
