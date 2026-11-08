@@ -221,16 +221,34 @@ local function run(kind, arg)
 	error("unknown kind " .. tostring(kind), 0)
 end
 
+M.dispatchLogged = {}
 function M.dispatch(kind, arg)
 	local ok, res = pcall(run, kind, arg)
+	local key = vars and vars.missionCode or -1
+	if not M.dispatchLogged[key] and Dynamite and Dynamite.Log then
+		M.dispatchLogged[key] = true
+		pcall(Dynamite.Log, "coopqa: first reply in mission " .. tostring(key) .. " (" .. tostring(kind) .. ", ok=" .. tostring(ok) .. ")")
+	end
 	if ok then
 		return "1" .. tostring(res)
 	end
 	return "0" .. tostring(res)
 end
 
+-- The bridge is pumped only from the helicopter and missions (mission code >= 10000). On the
+-- title screen (mission 1) the game hung on 2026-11-09 right after the first served request,
+-- twice; cause not known yet. The runner just waits until the bridge answers.
+M.pumpLogged = {}
 function M.Update()
 	M.frame = M.frame + 1
+	local code = vars and vars.missionCode or 0
+	if code < 10000 then
+		return
+	end
+	if not M.pumpLogged[code] and Dynamite and Dynamite.Log then
+		M.pumpLogged[code] = true
+		pcall(Dynamite.Log, "coopqa: pumping in mission " .. tostring(code))
+	end
 	if Dynamite and Dynamite.QAPump then
 		Dynamite.QAPump(M.dispatch)
 	end

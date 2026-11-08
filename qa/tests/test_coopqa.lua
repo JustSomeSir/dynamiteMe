@@ -23,6 +23,10 @@ qa.Update()
 qa.Update()
 check(pumped == 2 and pumpFn == qa.dispatch, "Update pumps once per frame with the dispatcher")
 check(CoopQA == qa, "module is reachable as CoopQA")
+vars.missionCode = 1
+qa.Update()
+check(pumped == 2, "no pumping on the title screen (mission 1)")
+vars.missionCode = 40010
 
 local function reply(kind, arg)
 	local r = qa.dispatch(kind, arg)

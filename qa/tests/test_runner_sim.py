@@ -83,7 +83,7 @@ def main():
         scenario(exe, "good", {}, True, "positions  twin  ok", twins=True),
         scenario(exe, "desync", {"client": {"QA_SIM_DESYNC": "1"}}, False, "player 0 differs", twins=False),
         scenario(exe, "noconnect", {"client": {"QA_SIM_NOCONNECT": "1"}}, False, "could not connect", twins=False),
-        scenario(exe, "crash", {"client": {"QA_SIM_CRASH_IN_MISSION": "1"}}, False, "client exited (code 3) during the soak", twins=False),
+        scenario(exe, "crash", {"client": {"QA_SIM_CRASH_IN_MISSION": "1"}}, False, "[stability]: client", twins=False),
     ]
     shutil.rmtree(bdir, ignore_errors=True)
     print("ALL OK" if all(results) else "FAILED")
