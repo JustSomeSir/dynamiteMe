@@ -37,6 +37,9 @@ foreach ($g in "game", "game2") {
     if (Get-Process -Name mgsvtpp -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$dir\*" }) {
         throw "mgsvtpp.exe from $dir is running; close it first"
     }
+    if (Get-Process -Name dynamite -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$dir\*" }) {
+        throw "dynamite.exe (master server / launcher) from $dir is running; close its window first"
+    }
     Copy-Item "$src\dynamite.exe" "$dir\dynamite.exe" -Force
     Write-Host "== install into $dir"
     Push-Location $dir
