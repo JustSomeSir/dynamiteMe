@@ -148,7 +148,8 @@ class Copy:
 
     def state(self):
         self.must_live()
-        st = self.bridge.state()
+        # short per-request timeout: during loads the game runs no Lua frames and can't answer
+        st = self.bridge.call("state", {"timeoutMs": 5000}, timeout_s=10)
         st["_t"] = time.time()
         self.states.append(st)
         return st
