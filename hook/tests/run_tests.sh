@@ -14,6 +14,8 @@ flags="-std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined -g -I $src 
 
 $CXX $flags "$here/message_validation_test.cpp" -o "$out/mv"
 "$out/mv"
+$CXX $flags "$here/instance_name_test.cpp" -o "$out/inst"
+"$out/inst"
 
 # Mutants: break the validator in ways a real regression could, expect the test to fail.
 mutants=0; killed=0

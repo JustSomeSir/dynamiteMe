@@ -91,6 +91,7 @@ add_library(${PROJECT_NAME} SHARED
         src/DynamiteHook.cpp
         src/main.cpp
         src/DInputProxy.cpp
+        src/SecondInstance.cpp
 )
 
 add_dependencies(${PROJECT_NAME} version)

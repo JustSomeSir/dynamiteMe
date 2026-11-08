@@ -23,6 +23,7 @@
 
 #include "DynamiteHook.h"
 #include "DynamiteLua.h"
+#include "SecondInstance.h"
 
 namespace Dynamite {
     GameVersion DetectGameVersion(HMODULE exe) {
@@ -122,6 +123,7 @@ namespace Dynamite {
         SetUnhandledExceptionFilter(UnhandledExceptionHandler);
 
         SetupLogger();
+        SetupSecondInstance();
 
         // mgo bad
         HMODULE hExe = GetModuleHandle(nullptr);
