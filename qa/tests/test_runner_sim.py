@@ -50,6 +50,7 @@ def scenario(exe, name, env_extra, want_pass, expect_text, twins):
         "position_tolerance_m": 1.0,
         "runs_dir": os.path.join(root, "runs"),
         "suite": ["connect", "positions", "stability"],
+        "title_wait": "poll",
         "timeouts": {"master_server": 10, "bridge": 20, "title": 20, "mission_load": 20, "connect": 5, "settle": 1, "soak": 5},
     }
     cfg_path = os.path.join(root, "qa_config.json")

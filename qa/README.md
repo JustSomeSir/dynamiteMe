@@ -25,5 +25,8 @@ lua5.1 qa/tests/test_coopqa.lua qa/lua
 ```
 
 ## Known gaps
-- Title screen "Continue" is still pressed by a person (the runner prompts). The title script is not in the mod's sources.
+- Title screen "Continue" is still pressed by a person: the runner waits for Enter in its console and sends no bridge
+  requests before that. Requests served while the title menu loads left it on a spinner (three runs, 2026-11-09), and the
+  title backdrop already reports mission 40010 with heliSpace=true, so polling cannot tell the title from the helicopter.
+  The title script is not in the mod's sources. Master server output goes to `runs/<run>/master-server.log`.
 - No enemy-sync test yet (needs a Lua way to damage a soldier on the host).

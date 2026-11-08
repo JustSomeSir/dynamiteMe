@@ -225,6 +225,27 @@ class Copy:
 
 
 # ------------------------------------------------------------------ the session every test needs
+def wait_title(cfg, copy, heli, window):
+    """Gets a copy from the title screen into the helicopter.
+
+    title_wait "enter" (default, real game): the bridge stays silent until the person has pressed
+    CONTINUE and presses Enter here. Bridge requests served while the title menu was loading left it
+    on a spinner three runs in a row (2026-11-09); the title backdrop already reports mission 40010
+    and heliSpace=true, so polling can't tell the title from the helicopter.
+    title_wait "poll" (simulation): poll state() until heliSpace."""
+    t = cfg["timeouts"]
+    if cfg.get("title_wait", "enter") == "enter":
+        copy.log("*** ACTION NEEDED: press CONTINUE in the %s, wait until you control Snake in the "
+                 "helicopter, then press Enter here" % window)
+        input()
+        copy.must_live()
+        copy.wait_state("helicopter", heli, t["mission_load"])
+    else:
+        copy.wait_state("helicopter (title -> Continue)", heli, t["title"],
+                        prompt="press CONTINUE in the %s" % window)
+    copy.log(copy.name, "in helicopter")
+
+
 def bring_up_session(cfg, log, run_dir, started, skip_connect=False):
     """Master server, host in mission, client connected and in the same mission.
 
@@ -236,7 +257,9 @@ def bring_up_session(cfg, log, run_dir, started, skip_connect=False):
             log("master server already listening on", ms.get("port", 6667))
         else:
             log("start master server:", ms["exe"], " ".join(ms.get("args", [])))
-            server_proc = subprocess.Popen([ms["exe"]] + ms.get("args", []), cwd=ms["dir"])
+            ms_log = open(os.path.join(run_dir, "master-server.log"), "w")
+            server_proc = subprocess.Popen([ms["exe"]] + ms.get("args", []), cwd=ms["dir"],
+                                           stdout=ms_log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
             started["server"] = server_proc
             deadline = time.time() + t["master_server"]
             while not port_open(ms.get("port", 6667)):
@@ -258,8 +281,7 @@ def bring_up_session(cfg, log, run_dir, started, skip_connect=False):
 
     host.start()
     host.connect_bridge(t["bridge"])
-    host.wait_state("helicopter (title -> Continue)", heli, t["title"],
-                    prompt="press CONTINUE in the HOST window (game copy 1)")
+    wait_title(cfg, host, heli, "HOST window (game copy 1)")
     log("host in helicopter, starting mission", mission)
     r = host.eval("CoopQA.startMission(%d)" % mission)
     if not r.get("ok"):
@@ -272,8 +294,7 @@ def bring_up_session(cfg, log, run_dir, started, skip_connect=False):
 
     client.start()
     client.connect_bridge(t["bridge"])
-    client.wait_state("helicopter (title -> Continue)", heli, t["title"],
-                      prompt="press CONTINUE in the CLIENT window (game copy 2)")
+    wait_title(cfg, client, heli, "CLIENT window (game copy 2)")
     if skip_connect:
         log("TWIN: client does NOT call CreateClientSession")
     else:
