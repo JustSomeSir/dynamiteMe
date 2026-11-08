@@ -264,10 +264,57 @@ namespace {
 } // namespace
 
 // ---------------- exports ----------------
+// Logged pass-throughs for every other steam_api64 import of mgsvtpp.exe 1.0.15.4, so a failing
+// start shows which call returned what. First 5 calls of each are logged.
+#define SP_LOGGED_ACCESSOR(name)                                                                                                                     \
+    extern "C" void *__cdecl name() {                                                                                                                \
+        using F = void *(*)();                                                                                                                       \
+        static F real = Real<F>(#name);                                                                                                              \
+        static int calls = 0;                                                                                                                        \
+        void *r = real ? real() : nullptr;                                                                                                           \
+        if (calls++ < 5) Log(#name "() = %p", r);                                                                                                  \
+        return r;                                                                                                                                    \
+    }
+SP_LOGGED_ACCESSOR(SteamUserStats)
+SP_LOGGED_ACCESSOR(SteamUtils)
+SP_LOGGED_ACCESSOR(SteamFriends)
+SP_LOGGED_ACCESSOR(SteamRemoteStorage)
+SP_LOGGED_ACCESSOR(SteamApps)
+
+extern "C" bool __cdecl SteamAPI_Init() {
+    using F = bool (*)();
+    static F real = Real<F>("SteamAPI_Init");
+    Log("SteamAPI_Init() called");
+    const bool ok = real ? real() : false;
+    Log("SteamAPI_Init() = %d", ok);
+    return ok;
+}
+
+extern "C" void __cdecl SteamAPI_Shutdown() {
+    using F = void (*)();
+    static F real = Real<F>("SteamAPI_Shutdown");
+    Log("SteamAPI_Shutdown()");
+    if (real) real();
+}
+
+extern "C" void __cdecl SteamAPI_RegisterCallResult(void *cb, uint64_t call) {
+    using F = void (*)(void *, uint64_t);
+    static F real = Real<F>("SteamAPI_RegisterCallResult");
+    if (real) real(cb, call);
+}
+
+extern "C" void __cdecl SteamAPI_UnregisterCallResult(void *cb, uint64_t call) {
+    using F = void (*)(void *, uint64_t);
+    static F real = Real<F>("SteamAPI_UnregisterCallResult");
+    if (real) real(cb, call);
+}
+
 extern "C" void *__cdecl SteamNetworking() {
     using F = void *(*)();
     static F real = Real<F>("SteamNetworking");
     void *r = real ? real() : nullptr;
+    static int calls = 0;
+    if (calls++ < 5) Log("SteamNetworking() real = %p", r);
     Init();
     if (!g_enabled || r == nullptr) return r;
     std::lock_guard<std::mutex> g(g_wrapMu);
@@ -283,6 +330,8 @@ extern "C" void *__cdecl SteamUser() {
     using F = void *(*)();
     static F real = Real<F>("SteamUser");
     void *r = real ? real() : nullptr;
+    static int calls = 0;
+    if (calls++ < 5) Log("SteamUser() real = %p", r);
     Init();
     if (!g_enabled || g_fakeId == 0 || r == nullptr) return r;
     std::lock_guard<std::mutex> g(g_wrapMu);

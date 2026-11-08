@@ -15,6 +15,16 @@ OVERRIDDEN = {
     "SteamAPI_RegisterCallback",
     "SteamAPI_UnregisterCallback",
     "SteamAPI_RunCallbacks",
+    # logged pass-throughs (the rest of mgsvtpp.exe's steam_api64 imports)
+    "SteamUserStats",
+    "SteamUtils",
+    "SteamFriends",
+    "SteamRemoteStorage",
+    "SteamApps",
+    "SteamAPI_Init",
+    "SteamAPI_Shutdown",
+    "SteamAPI_RegisterCallResult",
+    "SteamAPI_UnregisterCallResult",
 }
 
 ROW = re.compile(r"^\s*(\d+)\s+0x[0-9a-fA-F]+\s+(\S+)\s*$")

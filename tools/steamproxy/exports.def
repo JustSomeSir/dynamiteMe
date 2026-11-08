@@ -617,18 +617,18 @@ EXPORTS
     SteamAPI_ISteamUtils_ShowGamepadTextInput=steam_api64_real.SteamAPI_ISteamUtils_ShowGamepadTextInput @615
     SteamAPI_ISteamVideo_GetVideoURL=steam_api64_real.SteamAPI_ISteamVideo_GetVideoURL @616
     SteamAPI_ISteamVideo_IsBroadcasting=steam_api64_real.SteamAPI_ISteamVideo_IsBroadcasting @617
-    SteamAPI_Init=steam_api64_real.SteamAPI_Init @618
+    SteamAPI_Init @618
     SteamAPI_InitSafe=steam_api64_real.SteamAPI_InitSafe @619
     SteamAPI_IsSteamRunning=steam_api64_real.SteamAPI_IsSteamRunning @620
-    SteamAPI_RegisterCallResult=steam_api64_real.SteamAPI_RegisterCallResult @621
+    SteamAPI_RegisterCallResult @621
     SteamAPI_RegisterCallback @622
     SteamAPI_RestartAppIfNecessary=steam_api64_real.SteamAPI_RestartAppIfNecessary @623
     SteamAPI_RunCallbacks @624
     SteamAPI_SetBreakpadAppID=steam_api64_real.SteamAPI_SetBreakpadAppID @625
     SteamAPI_SetMiniDumpComment=steam_api64_real.SteamAPI_SetMiniDumpComment @626
     SteamAPI_SetTryCatchCallbacks=steam_api64_real.SteamAPI_SetTryCatchCallbacks @627
-    SteamAPI_Shutdown=steam_api64_real.SteamAPI_Shutdown @628
-    SteamAPI_UnregisterCallResult=steam_api64_real.SteamAPI_UnregisterCallResult @629
+    SteamAPI_Shutdown @628
+    SteamAPI_UnregisterCallResult @629
     SteamAPI_UnregisterCallback @630
     SteamAPI_UseBreakpadCrashHandler=steam_api64_real.SteamAPI_UseBreakpadCrashHandler @631
     SteamAPI_WriteMiniDump=steam_api64_real.SteamAPI_WriteMiniDump @632
@@ -695,7 +695,7 @@ EXPORTS
     SteamAPI_vr_IVRSystem_PollNextEvent=steam_api64_real.SteamAPI_vr_IVRSystem_PollNextEvent @693
     SteamAPI_vr_IVRSystem_ResetSeatedZeroPose=steam_api64_real.SteamAPI_vr_IVRSystem_ResetSeatedZeroPose @694
     SteamAppList=steam_api64_real.SteamAppList @695
-    SteamApps=steam_api64_real.SteamApps @696
+    SteamApps @696
     SteamClient=steam_api64_real.SteamClient @697
     SteamController=steam_api64_real.SteamController @698
     SteamController_GetControllerState=steam_api64_real.SteamController_GetControllerState @699
@@ -703,7 +703,7 @@ EXPORTS
     SteamController_SetOverrideMode=steam_api64_real.SteamController_SetOverrideMode @701
     SteamController_Shutdown=steam_api64_real.SteamController_Shutdown @702
     SteamController_TriggerHapticPulse=steam_api64_real.SteamController_TriggerHapticPulse @703
-    SteamFriends=steam_api64_real.SteamFriends @704
+    SteamFriends @704
     SteamGameServer=steam_api64_real.SteamGameServer @705
     SteamGameServerApps=steam_api64_real.SteamGameServerApps @706
     SteamGameServerHTTP=steam_api64_real.SteamGameServerHTTP @707
@@ -729,13 +729,13 @@ EXPORTS
     SteamMusic=steam_api64_real.SteamMusic @727
     SteamMusicRemote=steam_api64_real.SteamMusicRemote @728
     SteamNetworking @729
-    SteamRemoteStorage=steam_api64_real.SteamRemoteStorage @730
+    SteamRemoteStorage @730
     SteamScreenshots=steam_api64_real.SteamScreenshots @731
     SteamUGC=steam_api64_real.SteamUGC @732
     SteamUnifiedMessages=steam_api64_real.SteamUnifiedMessages @733
     SteamUser @734
-    SteamUserStats=steam_api64_real.SteamUserStats @735
-    SteamUtils=steam_api64_real.SteamUtils @736
+    SteamUserStats @735
+    SteamUtils @736
     SteamVideo=steam_api64_real.SteamVideo @737
     Steam_GetHSteamUserCurrent=steam_api64_real.Steam_GetHSteamUserCurrent @738
     Steam_RegisterInterfaceFuncs=steam_api64_real.Steam_RegisterInterfaceFuncs @739
