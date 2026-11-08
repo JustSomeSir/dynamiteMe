@@ -24,6 +24,7 @@
 #include "DynamiteHook.h"
 #include "DynamiteLua.h"
 #include "SecondInstance.h"
+#include "QABridge.h"
 
 namespace Dynamite {
     GameVersion DetectGameVersion(HMODULE exe) {
@@ -125,6 +126,7 @@ namespace Dynamite {
         SetupLogger();
         SetupSecondInstance();
         SetupTestTransport();
+        QA::Setup();
 
         // mgo bad
         HMODULE hExe = GetModuleHandle(nullptr);

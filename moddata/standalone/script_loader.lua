@@ -130,7 +130,33 @@ function script_loader.OnAllocate() end
 
 function script_loader.OnInitialize() end
 
+-- Test-only bot bridge: active only when coopqa.ini sits next to mgsvtpp.exe (see hook/src/QABridge.h).
+-- lua/coopqa.lua is required once and its Update runs every frame; errors are logged, never raised.
+function script_loader.qa_init()
+	if script_loader.qa ~= nil then
+		return
+	end
+	script_loader.qa = false
+	if helpers.readable(helpers.get_game_path() .. "\\coopqa.ini") == nil then
+		return
+	end
+	local ok, mod = xpcall(function()
+		return require("coopqa")
+	end, script_loader.error_handler)
+	if ok and type(mod) == "table" and type(mod.Update) == "function" then
+		script_loader.qa = mod
+		helpers.log("coopqa loaded", true)
+	else
+		helpers.log("coopqa.ini found but lua/coopqa.lua did not load", true, "e")
+	end
+end
+
 function script_loader.Update()
+	script_loader.qa_init()
+	if script_loader.qa then
+		xpcall(script_loader.qa.Update, script_loader.error_handler)
+	end
+
 	script_loader.init(false)
 
 	if bit.band(PlayerVars.scannedButtonsDirect, script_loader.master_key) == script_loader.master_key then

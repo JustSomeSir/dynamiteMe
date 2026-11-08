@@ -1,4 +1,5 @@
 #include "DynamiteLua.h"
+#include "QABridge.h"
 #include "SoldierWarp.h"
 #include "DynamiteHook.h"
 #include "dynamite.h"
@@ -493,6 +494,11 @@ namespace Dynamite {
             {"PopBodyUpdate", l_PopBodyUpdate},
             {"CaptureSoldier", l_CaptureSoldier},
             {"WarpSoldier", l_WarpSoldier},
+            // test-only (coopqa.ini): bot bridge, see QABridge.h
+            {"QAPump", QA::l_QAPump},
+            {"QAEvent", QA::l_QAEvent},
+            {"QAMemberCount", QA::l_QAMemberCount},
+            {"QAPlayerPos", QA::l_QAPlayerPos},
             {nullptr, nullptr},
         };
         luaI_openlib(L, "Dynamite", libFuncs, 0);

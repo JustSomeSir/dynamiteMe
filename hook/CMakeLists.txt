@@ -92,6 +92,7 @@ add_library(${PROJECT_NAME} SHARED
         src/main.cpp
         src/DInputProxy.cpp
         src/SecondInstance.cpp
+        src/QABridge.cpp
 )
 
 add_dependencies(${PROJECT_NAME} version)
@@ -99,4 +100,4 @@ add_dependencies(${PROJECT_NAME} version)
 target_compile_options(${PROJECT_NAME} PUBLIC -fpermissive ${OPTS})
 
 target_link_options(${PROJECT_NAME} PUBLIC -static)
-target_link_libraries(${PROJECT_NAME} flatbuffers minhook mINI spdlog::spdlog_header_only)
+target_link_libraries(${PROJECT_NAME} flatbuffers minhook mINI spdlog::spdlog_header_only ws2_32)
