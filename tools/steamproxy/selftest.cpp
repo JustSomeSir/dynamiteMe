@@ -55,15 +55,17 @@ static void Run1(FakeCallback *self, void *p) {
     self->lastPeer = *(uint64_t *)p;
 }
 
-int main() {
+int main(int argc, char **argv) {
+    // --shim: the folder holds the ORIGINAL steam_api64.dll plus steamshim.dll (hook mode).
+    const bool shim = argc > 1 && std::strcmp(argv[1], "--shim") == 0;
     setvbuf(stdout, nullptr, _IONBF, 0);
     FILE *ini = fopen("steam_proxy.ini", "w");
     fprintf(ini, "listen_port=%u\npeer_port=%u\nfake_steam_id=%llu\n", kProxyPort, kPeerPort, (unsigned long long)kFake);
     fclose(ini);
 
     // ---- 1. ABI check against the real DLL directly ----
-    HMODULE real = LoadLibraryW(L"steam_api64_real.dll");
-    CHECK(real != nullptr, "load steam_api64_real.dll");
+    HMODULE real = LoadLibraryW(shim ? L"steam_api64.dll" : L"steam_api64_real.dll");
+    CHECK(real != nullptr, shim ? "load original steam_api64.dll" : "load steam_api64_real.dll");
     if (!real) return 1;
     using InitF = bool (*)();
     using GetIfaceF = void *(*)();
@@ -71,14 +73,22 @@ int main() {
     using VGetIdF = uint64_t *(*)(void *, uint64_t *);
     using VBoolF = bool (*)(void *);
 
-    HMODULE proxy = LoadLibraryW(L"steam_api64.dll");
+    HMODULE proxy = shim ? real : LoadLibraryW(L"steam_api64.dll");
     if (!proxy) std::printf("     LoadLibrary error %lu\n", GetLastError());
     CHECK(proxy != nullptr, "load proxy steam_api64.dll");
     if (!proxy) return 1;
-    auto init = (InitF)GetProcAddress(proxy, "SteamAPI_Init"); // forwarded export
-    CHECK(init && init(), "SteamAPI_Init via proxy (Steam running, steam_appid.txt=287700)");
+    auto init = (InitF)GetProcAddress(proxy, "SteamAPI_Init");
+    CHECK(init && init(), "SteamAPI_Init (Steam running, steam_appid.txt=287700)");
 
+    // in shim mode the real interfaces must be fetched before the detours go in
     auto realUser = ((GetIfaceF)GetProcAddress(real, "SteamUser"))();
+    auto realNetEarly = ((GetIfaceF)GetProcAddress(real, "SteamNetworking"))();
+    if (shim) {
+        HMODULE sh = LoadLibraryW(L"steamshim.dll");
+        if (!sh) std::printf("     LoadLibrary steamshim error %lu\n", GetLastError());
+        CHECK(sh != nullptr, "load steamshim.dll (installs detours)");
+        if (!sh) return 1;
+    }
     auto flatId = (FlatIdF)GetProcAddress(real, "SteamAPI_ISteamUser_GetSteamID");
     const uint64_t idFlat = flatId(realUser);
     uint64_t idV = 0;
@@ -118,7 +128,7 @@ int main() {
     reg(&cb, 1202);
 
     void *net = ((GetIfaceF)GetProcAddress(proxy, "SteamNetworking"))();
-    auto realNet = ((GetIfaceF)GetProcAddress(real, "SteamNetworking"))();
+    auto realNet = realNetEarly;
     CHECK(net && net != realNet, "SteamNetworking() is wrapped");
     void **vt = *(void ***)net;
     using SendF = bool (*)(void *, uint64_t, const void *, uint32_t, int, int);

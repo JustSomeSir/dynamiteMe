@@ -39,6 +39,15 @@ namespace Dynamite {
         }
     } // namespace
 
+    void SetupTestTransport() {
+        // Test-only: tools/steamproxy in hook mode. Present only in test copies, next to mgsvtpp.exe.
+        if (GetFileAttributesW(L"steam_proxy.ini") == INVALID_FILE_ATTRIBUTES) {
+            return;
+        }
+        HMODULE shim = LoadLibraryW(L"steamshim.dll");
+        spdlog::info("test transport: steam_proxy.ini found, steamshim.dll {} (error {})", shim ? "loaded" : "NOT loaded", shim ? 0 : GetLastError());
+    }
+
     void SetupSecondInstance() {
         g_instanceId = ReadInstanceId();
         if (g_instanceId.empty()) {

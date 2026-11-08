@@ -5,7 +5,16 @@
 // DLL in as steam_api64.dll, add steam_proxy.ini (see README.md). Without steam_proxy.ini the
 // proxy forwards everything unchanged.
 //
-// Everything is forwarded to steam_api64_real.dll (exports.def) except:
+// Two builds of this file:
+//  - proxy (default): this DLL *is* steam_api64.dll; everything else is forwarded to
+//    steam_api64_real.dll by exports.def.
+//  - SP_HOOK_MODE (steamshim.dll): the game's own steam_api64.dll stays untouched on disk. Something
+//    already in the process (the Dynamite hook, when steam_proxy.ini exists) loads steamshim.dll,
+//    whose DllMain detours the functions below inside the loaded steam_api64.dll with MinHook.
+//    Needed because mgsvtpp.exe 1.0.15.4 refuses to start ("failed to load SteamAPI") with any
+//    replaced steam_api64.dll, before calling SteamAPI_Init.
+//
+// Overridden functions:
 //   SteamNetworking()            -> wrapper of ISteamNetworking005 whose P2P methods use P2PCore
 //   SteamUser()                  -> wrapper whose GetSteamID returns fake_steam_id (if set)
 //   SteamAPI_RegisterCallback /  -> remembered for P2PSessionRequest_t (1202), then forwarded
@@ -18,6 +27,11 @@
 // a hidden pointer passed after `this`.
 
 #include "p2pcore.h"
+
+#ifdef SP_HOOK_MODE
+#include <MinHook.h>
+#include <unordered_map>
+#endif
 
 #include <windows.h>
 
@@ -89,16 +103,24 @@ namespace {
     }
 
     // ---------------- real DLL ----------------
+#ifdef SP_HOOK_MODE
+    // name -> MinHook trampoline for detoured functions; other names resolve in the loaded module.
+    std::unordered_map<std::string, void *> g_trampolines;
+#endif
+
     template <typename T> T Real(const char *name) {
+#ifdef SP_HOOK_MODE
+        if (const auto it = g_trampolines.find(name); it != g_trampolines.end()) return (T)it->second;
+        if (!g_real) g_real = GetModuleHandleW(L"steam_api64.dll");
+#else
+        if (!g_real) g_real = LoadLibraryW((g_dir + L"\\steam_api64_real.dll").c_str());
+#endif
         if (!g_real) {
-            g_real = LoadLibraryW((g_dir + L"\\steam_api64_real.dll").c_str());
-            if (!g_real) {
-                Log("FATAL: cannot load steam_api64_real.dll (error %lu)", GetLastError());
-                return nullptr;
-            }
+            Log("FATAL: real steam_api64 not available (error %lu)", GetLastError());
+            return nullptr;
         }
         auto p = (T)(void *)GetProcAddress(g_real, name);
-        if (!p) Log("FATAL: steam_api64_real.dll has no %s", name);
+        if (!p) Log("FATAL: steam_api64 has no %s", name);
         return p;
     }
 
@@ -397,13 +419,62 @@ extern "C" void __cdecl SteamAPI_RunCallbacks() {
     }
 }
 
+#ifdef SP_HOOK_MODE
+// Keeps mingw from exporting every symbol of steamshim.dll (it does when nothing is dllexport).
+extern "C" __declspec(dllexport) int SteamShimVersion() { return 1; }
+
+namespace {
+    void HookOne(const char *name, void *detour) {
+        void *target = g_real ? (void *)GetProcAddress(g_real, name) : nullptr;
+        if (!target) {
+            Log("hook %s: export not found", name);
+            return;
+        }
+        void *orig = nullptr;
+        MH_STATUS st = MH_CreateHook(target, detour, &orig);
+        if (st == MH_OK) st = MH_EnableHook(target);
+        if (st == MH_OK) g_trampolines[name] = orig;
+        Log("hook %s: %s", name, MH_StatusToString(st));
+    }
+
+    void InstallHooks() {
+        g_real = GetModuleHandleW(L"steam_api64.dll");
+        if (!g_real) {
+            // The exe imports it, so loading it here only does early what the loader does anyway.
+            g_real = LoadLibraryW((g_dir + L"\\steam_api64.dll").c_str());
+            Log("steam_api64.dll was not mapped yet, loaded it: %p", (void *)g_real);
+        }
+        if (!g_real) {
+            Log("steam_api64.dll not available, nothing hooked");
+            return;
+        }
+        const MH_STATUS init = MH_Initialize();
+        if (init != MH_OK && init != MH_ERROR_ALREADY_INITIALIZED) {
+            Log("MH_Initialize: %s", MH_StatusToString(init));
+            return;
+        }
+        HookOne("SteamAPI_Init", (void *)&SteamAPI_Init);
+        HookOne("SteamAPI_Shutdown", (void *)&SteamAPI_Shutdown);
+        HookOne("SteamNetworking", (void *)&SteamNetworking);
+        HookOne("SteamUser", (void *)&SteamUser);
+        HookOne("SteamAPI_RegisterCallback", (void *)&SteamAPI_RegisterCallback);
+        HookOne("SteamAPI_UnregisterCallback", (void *)&SteamAPI_UnregisterCallback);
+        HookOne("SteamAPI_RunCallbacks", (void *)&SteamAPI_RunCallbacks);
+    }
+} // namespace
+#endif
+
 BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) {
         g_module = h;
         DisableThreadLibraryCalls(h);
         InitializeCriticalSection(&g_logLock);
         wchar_t path[MAX_PATH];
+#ifdef SP_HOOK_MODE
+        GetModuleFileNameW(nullptr, path, MAX_PATH); // game dir: ini and log live next to mgsvtpp.exe
+#else
         GetModuleFileNameW(h, path, MAX_PATH);
+#endif
         g_dir = path;
         g_dir = g_dir.substr(0, g_dir.find_last_of(L'\\'));
         wchar_t logPath[MAX_PATH + 64];
@@ -417,6 +488,9 @@ BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID) {
         for (int i = 0; i < kUserVtableCopy; i++) g_userVtbl[i] = sp_fwd_table[i];
         g_userVtbl[kUserGetSteamID] = (void *)&User_GetSteamID;
         Log("user vtable built; steamproxy loaded");
+#ifdef SP_HOOK_MODE
+        InstallHooks();
+#endif
         RemoveVectoredExceptionHandler(veh);
     }
     return TRUE;

@@ -124,6 +124,7 @@ namespace Dynamite {
 
         SetupLogger();
         SetupSecondInstance();
+        SetupTestTransport();
 
         // mgo bad
         HMODULE hExe = GetModuleHandle(nullptr);
