@@ -21,6 +21,7 @@ namespace Dynamite::QA {
         int (*pcall)(lua_State *, int, int, int);
         const char *(*checklstring)(lua_State *, int, size_t *);
         void (*remove)(lua_State *, int);
+        void (*trace)(const char *) = nullptr; // optional step log (the game hangs somewhere after a reply)
     };
 
     class LuaAdapter : public coopbridge::Adapter {
@@ -62,11 +63,15 @@ namespace Dynamite::QA {
             api_.pushvalue(L_, dispatchIndex_);
             api_.pushstring(L_, kind);
             api_.pushstring(L_, arg.c_str());
+            Trace("call: pcall");
             const int rc = api_.pcall(L_, 2, 1, 0);
+            Trace("call: checklstring");
             size_t n = 0;
             const char *s = api_.checklstring(L_, -1, &n); // a string either way (see coopqa.lua)
             std::string out(s ? s : "", s ? n : 0);
+            Trace("call: remove");
             api_.remove(L_, -1);
+            Trace(("call: reply " + out.substr(0, 300)).c_str());
             if (rc != 0) {
                 throw coopbridge::Error(-32012, "Lua error: " + out);
             }
@@ -80,13 +85,19 @@ namespace Dynamite::QA {
         }
 
       private:
-        static coopbridge::json::Value Parse(const std::string &text) {
+        coopbridge::json::Value Parse(const std::string &text) {
             coopbridge::json::Value v;
             std::string err;
-            if (!coopbridge::json::parse(text, v, err)) {
+            const bool ok = coopbridge::json::parse(text, v, err);
+            Trace(ok ? "parse: ok" : ("parse: failed: " + err).c_str());
+            if (!ok) {
                 throw coopbridge::Error(-32015, "coopqa returned invalid JSON: " + err);
             }
             return v;
+        }
+
+        void Trace(const char *step) const {
+            if (api_.trace) api_.trace(step);
         }
 
         LuaApi api_;

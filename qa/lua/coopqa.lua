@@ -64,7 +64,8 @@ local function encode(v, depth)
 		if math.floor(v) == v and math.abs(v) < 1e15 then
 			return string.format("%d", v)
 		end
-		return string.format("%.6f", v)
+		-- the C locale decides the decimal mark; JSON needs "."
+		return (string.gsub(string.format("%.6f", v), ",", "."))
 	elseif t == "string" then
 		return esc(v)
 	elseif t == "table" then

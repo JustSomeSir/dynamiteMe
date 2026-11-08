@@ -28,7 +28,23 @@ namespace Dynamite::QA {
         const char *CheckLString(lua_State *L, int i, size_t *n) { return luaL_checklstring(L, i, n); }
         void Remove(lua_State *L, int i) { lua_remove(L, i); }
 
-        LuaAdapter g_adapter(LuaApi{&PushValue, &PushString, &PCall, &CheckLString, &Remove});
+        // Step log for the first requests: the game froze right after the first served reply
+        // (2026-11-09) and the Lua side showed the reply was built. These lines show where it stops.
+        std::atomic<int> g_traceLeft{60};
+        void Trace(const char *step) {
+            if (g_traceLeft.fetch_sub(1) > 0) spdlog::info("qa trace: {}", step);
+        }
+
+        LuaAdapter g_adapter(LuaApi{&PushValue, &PushString, &PCall, &CheckLString, &Remove, &Trace});
+
+        // Do C++ exceptions work in this process? The bridge reports every error by throwing.
+        void ExceptionSelfTest(const char *where) {
+            try {
+                throw coopbridge::Error(-1, "self-test");
+            } catch (const std::exception &e) {
+                spdlog::info("qa bridge: exception self-test ({}) caught: {}", where, e.what());
+            }
+        }
         coopbridge::Server *g_server = nullptr; // leaked on purpose: lives until process exit
 
         int ReadPort() {
@@ -65,6 +81,7 @@ namespace Dynamite::QA {
             return;
         }
         g_enabled = true;
+        ExceptionSelfTest("setup");
         g_server->Register(
             "qa.stats",
             [](const coopbridge::json::Value &) {
@@ -81,13 +98,20 @@ namespace Dynamite::QA {
 
     int l_QAPump(lua_State *L) {
         if (!g_enabled) return 0;
+        static bool firstPump = true;
+        if (firstPump) {
+            firstPump = false;
+            ExceptionSelfTest("first pump, main thread");
+        }
         g_adapter.Bind(L, 1); // Dynamite.QAPump(dispatch): dispatch is argument 1
+        const auto servedBefore = g_server->stats().served;
         try {
             g_server->Pump();
         } catch (const std::exception &e) {
             spdlog::error("qa bridge: pump: {}", e.what());
         }
         g_adapter.Unbind();
+        if (g_server->stats().served != servedBefore) Trace("pump: returned after serving");
         return 0;
     }
 
