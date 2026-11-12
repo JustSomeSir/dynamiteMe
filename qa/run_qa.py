@@ -342,13 +342,17 @@ def bring_up_session(cfg, log, run_dir, started, skip_connect=False):
         c.preflight(cfg.get("preflight_files", []))
 
     mission = cfg["mission"]
+    # mission_route: null = start on the ground at the mission's own start point; "default" or a route
+    # name = arrive by helicopter (then somebody has to get out of it)
+    route = cfg.get("mission_route")
+    start_expr = "CoopQA.startMission(%d%s)" % (mission, ", %s" % json.dumps(route) if route else "")
     heli = lambda s: s.get("heliSpace") is True  # noqa: E731
 
     host.start()
     host.connect_bridge(t["bridge"])
     wait_title(cfg, host, heli, "HOST window (game copy 1)")
     log("host in helicopter, starting mission", mission)
-    r = host.eval("CoopQA.startMission(%d)" % mission)
+    r = host.eval(start_expr)
     if not r.get("ok"):
         raise TestFailure("host startMission refused: %s" % r)
     host.wait_state("host in mission %d" % mission, lambda s: s.get("mission") == mission, t["mission_load"])
@@ -381,7 +385,7 @@ def bring_up_session(cfg, log, run_dir, started, skip_connect=False):
         else:
             raise TestFailure("client could not connect after 3 attempts")
         log("client connected")
-    r = client.eval("CoopQA.startMission(%d)" % mission)
+    r = client.eval(start_expr)
     if not r.get("ok"):
         raise TestFailure("client startMission refused: %s" % r)
     client.wait_state("client in mission %d" % mission, lambda s: s.get("mission") == mission, t["mission_load"])
@@ -526,9 +530,15 @@ def main():
     ap.add_argument("--test", action="append", help="run only these tests")
     ap.add_argument("--twins", action="store_true", help="also run mutation twins (each must FAIL)")
     ap.add_argument("--keep", action="store_true", help="leave games running")
+    ap.add_argument("--mission", type=int, help="mission code instead of the config's")
+    ap.add_argument("--route", help='helicopter drop route ("default" or a route name) instead of a ground start')
     args = ap.parse_args()
     with open(args.config, encoding="utf-8") as f:
         cfg = json.load(f)
+    if args.mission:
+        cfg["mission"] = args.mission
+    if args.route:
+        cfg["mission_route"] = args.route
     runs_root = cfg.get("runs_dir", os.path.join(HERE, "runs"))
     names = args.test or cfg.get("suite", ["connect", "positions", "stability"])
     for n in names:

@@ -25,9 +25,15 @@ def main():
     ap.add_argument("name")
     ap.add_argument("--config", default=os.path.join(HERE, "qa_config.json"))
     ap.add_argument("--keep", action="store_true", help="leave games running")
+    ap.add_argument("--mission", type=int, help="mission code instead of the config's")
+    ap.add_argument("--route", help='helicopter drop route ("default" or a route name) instead of a ground start')
     args = ap.parse_args()
     with open(args.config, encoding="utf-8") as f:
         cfg = json.load(f)
+    if args.mission:
+        cfg["mission"] = args.mission
+    if args.route:
+        cfg["mission_route"] = args.route
     mod = importlib.import_module("experiments." + args.name)
     run_dir = os.path.join(cfg.get("runs_dir", os.path.join(HERE, "runs")), time.strftime("%Y%m%d-%H%M%S") + "-" + args.name)
     os.makedirs(run_dir, exist_ok=True)

@@ -183,16 +183,25 @@ end
 
 -- ---------------------------------------------------------------- actions the runner calls by name
 -- From the helicopter (ACC): start a mission the way the deploy menu does.
-function M.startMission(missionCode)
+-- route: nil = no helicopter ride (the mission's own start point); "default" = the drop route from
+-- TppDefine.DEFAULT_DROP_ROUTE; or a route name like "lz_drp_field_N0000|rt_drp_field_N_0000".
+function M.startMission(missionCode, route)
 	if not TppMission.IsHelicopterSpace(vars.missionCode) then
 		return { ok = false, reason = "not in helicopter space", mission = vars.missionCode }
+	end
+	if route == "default" then
+		route = TppDefine.DEFAULT_DROP_ROUTE and TppDefine.DEFAULT_DROP_ROUTE[missionCode]
+		if not route then
+			return { ok = false, reason = "no default drop route for mission " .. tostring(missionCode) }
+		end
 	end
 	local r = TppMission.ReserveMissionClear({
 		missionClearType = TppDefine.MISSION_CLEAR_TYPE.FROM_HELISPACE,
 		nextMissionId = missionCode,
+		nextHeliRoute = route,
 		nextClusterId = TppDefine.STORY_MISSION_CLUSTER_ID[missionCode],
 	})
-	return { ok = r ~= false, reserved = r }
+	return { ok = r ~= false, reserved = r, route = route }
 end
 
 -- Title menu: do what selecting a menu item does. Seq_Game_TitleMenu handles the UI message "Continue"

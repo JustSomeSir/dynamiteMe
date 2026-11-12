@@ -64,6 +64,10 @@ check(string.sub(reply("bogus", ""), 1, 1) == "0", "unknown kind")
 check(reply("eval", "CoopQA.startMission(10020).ok") == "1true", "startMission from heli")
 local reserved = QA_STUB.reserved
 check(reserved and reserved.nextMissionId == 10020 and reserved.missionClearType == 7 and reserved.nextClusterId == 3, "ReserveMissionClear args")
+TppDefine.DEFAULT_DROP_ROUTE = { [10036] = "lz_a|rt_a" }
+check(reply("eval", "CoopQA.startMission(10036, 'default').route") == '1"lz_a|rt_a"' and QA_STUB.reserved.nextHeliRoute == "lz_a|rt_a", "default drop route is passed on")
+check(reply("eval", "CoopQA.startMission(10036).ok") == "1true" and QA_STUB.reserved.nextHeliRoute == nil, "no route: ground start")
+check(reply("eval", "CoopQA.startMission(10020, 'default').ok") == "1false", "missing default route is reported")
 vars.missionCode = 10020
 check(reply("eval", "CoopQA.startMission(10020).ok") == "1false", "startMission refuses outside heli")
 check(reply("eval", "CoopQA.connect().ok") == "1false", "host does not connect")
