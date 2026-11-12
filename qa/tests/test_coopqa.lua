@@ -69,4 +69,19 @@ check(reply("eval", "CoopQA.startMission(10020).ok") == "1false", "startMission 
 check(reply("eval", "CoopQA.connect().ok") == "1false", "host does not connect")
 check(reply("eval", "#CoopQA.players()") == "12", "two players")
 
+-- title screen
+local pressed = 0
+local seqName = "Seq_Demo_StartHasTitleMission"
+TppSequence = { GetCurrentSequenceName = function() return seqName end }
+gvars = { ini_isTitleMode = true }
+mvars = { mis_missionStateIsNotInGame = true, seq_sequenceTable = { Seq_Game_TitleMenu = { OnSelectContinue = function() pressed = pressed + 1 end } } }
+vars.missionCode = 40010
+check(string.find(reply("state", ""), '"sequence":"Seq_Demo_StartHasTitleMission"') ~= nil, "state reports the sequence")
+check(string.find(reply("state", ""), '"titleMode":true') ~= nil, "state reports title mode")
+check(reply("eval", "CoopQA.pressContinue().ok") == "1false" and pressed == 0, "no CONTINUE outside the title menu")
+seqName = "Seq_Game_TitleMenu"
+check(reply("eval", "CoopQA.pressContinue().ok") == "1true" and pressed == 1, "CONTINUE calls the menu's OnSelectContinue")
+mvars.seq_sequenceTable.Seq_Game_TitleMenu.OnSelectContinue = nil
+check(reply("eval", "CoopQA.pressContinue().ok") == "1false", "missing handler is reported, not raised")
+
 print(failures == 0 and "OK" or ("FAILED " .. failures))

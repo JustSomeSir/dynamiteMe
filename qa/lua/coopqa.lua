@@ -162,6 +162,10 @@ function M.state(sections)
 		s.heliSpace = try(TppMission.IsHelicopterSpace, vars.missionCode)
 	end
 	s.inMission = M.inMission()
+	-- title screen: it runs over the loaded mission (40010 with heliSpace=true), so these tell it apart
+	s.sequence = try(function() return TppSequence.GetCurrentSequenceName() end)
+	s.titleMode = try(function() return gvars.ini_isTitleMode end)
+	s.notInGame = try(function() return mvars.mis_missionStateIsNotInGame end)
 	s.saveFile = TppDefine and TppDefine.GAME_SAVE_FILE_NAME -- per copy (dynamite/instance.txt)
 	if want.players then
 		trace("players")
@@ -188,6 +192,21 @@ function M.startMission(missionCode)
 		nextClusterId = TppDefine.STORY_MISSION_CLUSTER_ID[missionCode],
 	})
 	return { ok = r ~= false, reserved = r }
+end
+
+-- Title menu: do what selecting CONTINUE does. Seq_Game_TitleMenu handles the UI message "Continue" with
+-- its OnSelectContinue (seen with qa/probe_title.py on 1.0.15.4, 2026-11-12).
+function M.pressContinue()
+	local name = TppSequence.GetCurrentSequenceName()
+	if name ~= "Seq_Game_TitleMenu" then
+		return { ok = false, reason = "sequence is " .. tostring(name) }
+	end
+	local seq = mvars.seq_sequenceTable and mvars.seq_sequenceTable[name]
+	if type(seq) ~= "table" or type(seq.OnSelectContinue) ~= "function" then
+		return { ok = false, reason = "Seq_Game_TitleMenu has no OnSelectContinue" }
+	end
+	seq.OnSelectContinue()
+	return { ok = true }
 end
 
 function M.connect()

@@ -25,8 +25,10 @@ lua5.1 qa/tests/test_coopqa.lua qa/lua
 ```
 
 ## Known gaps
-- Title screen "Continue" is still pressed by a person: the runner waits for Enter in its console and sends no bridge
-  requests before that. Requests served while the title menu loads left it on a spinner (three runs, 2026-11-09), and the
-  title backdrop already reports mission 40010 with heliSpace=true, so polling cannot tell the title from the helicopter.
-  The title script is not in the mod's sources. Master server output goes to `runs/<run>/master-server.log`.
+- Title screen: the runner presses CONTINUE itself (`CoopQA.pressContinue()` calls the title menu's own
+  `OnSelectContinue`) and waits for sequence `Seq_Game_MainGame` with `gvars.ini_isTitleMode == false`; the title
+  runs over the loaded mission, so mission code and heliSpace alone cannot tell it from the helicopter. Other title
+  steps (popups) are not automated: after 30 s in one step the runner asks a person. `"title_wait": "enter"` in the
+  config brings back the fully manual title. `probe_title.py` records title steps and handlers.
+  Master server output goes to `runs/<run>/master-server.log`.
 - No enemy-sync test yet (needs a Lua way to damage a soldier on the host).

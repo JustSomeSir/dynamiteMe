@@ -6,6 +6,8 @@ Scenarios (each runs the real runner as a subprocess and checks its RESULT line 
   good           everything works                         -> RESULT: PASS (with --twins: both twins fail as they must)
   desync         client sees the host 5 m off              -> RESULT: FAIL (positions)
   noconnect      CreateClientSession always fails          -> RESULT: FAIL (could not connect)
+  sharedsave     both copies use one save file             -> RESULT: FAIL (same save file)
+  titlestuck     CONTINUE does nothing on the host          -> RESULT: FAIL (still on the title)
   crash          client exits during the mission           -> RESULT: FAIL (exited)
 Last line: ALL OK only if every scenario gave the expected verdict.
 """
@@ -50,7 +52,6 @@ def scenario(exe, name, env_extra, want_pass, expect_text, twins):
         "position_tolerance_m": 1.0,
         "runs_dir": os.path.join(root, "runs"),
         "suite": ["connect", "positions", "stability"],
-        "title_wait": "poll",
         "timeouts": {"master_server": 10, "bridge": 20, "title": 20, "mission_load": 20, "connect": 5, "settle": 1, "soak": 5},
     }
     cfg_path = os.path.join(root, "qa_config.json")
@@ -85,6 +86,7 @@ def main():
         scenario(exe, "desync", {"client": {"QA_SIM_DESYNC": "1"}}, False, "player 0 differs", twins=False),
         scenario(exe, "noconnect", {"client": {"QA_SIM_NOCONNECT": "1"}}, False, "could not connect", twins=False),
         scenario(exe, "sharedsave", {"client": {"QA_SIM_SHARED_SAVE": "1"}}, False, "same save file", twins=False),
+        scenario(exe, "titlestuck", {"host": {"QA_SIM_TITLE_STUCK": "1"}}, False, "still on the title", twins=False),
         scenario(exe, "crash", {"client": {"QA_SIM_CRASH_IN_MISSION": "1"}}, False, "[stability]: client", twins=False),
     ]
     shutil.rmtree(bdir, ignore_errors=True)

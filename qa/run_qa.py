@@ -147,7 +147,7 @@ class Copy:
         raise TestFailure("%s: no bridge after %ds (coopqa.ini missing? hook not loaded?)" % (self.name, timeout_s))
 
     def state(self, players=False):
-        """players=True only inside a mission: positions hang the game on the title screen."""
+        """players=True only inside a mission."""
         self.must_live()
         # short per-request timeout: during loads the game runs no Lua frames and can't answer
         params = {"timeoutMs": 5000}
@@ -225,25 +225,61 @@ class Copy:
 
 
 # ------------------------------------------------------------------ the session every test needs
+def in_game(st):
+    """Past the title and playable. The title runs over the loaded mission, which already reports
+    mission 40010 and heliSpace=true; the sequence and the title flag tell the two apart
+    (qa/probe_title.py, 1.0.15.4, 2026-11-12)."""
+    return (st.get("heliSpace") is True and st.get("sequence") == "Seq_Game_MainGame"
+            and st.get("titleMode") is False and st.get("notInGame") is False)
+
+
 def wait_title(cfg, copy, heli, window):
     """Gets a copy from the title screen into the helicopter.
 
-    title_wait "enter" (default, real game): the bridge stays silent until the person has pressed
-    CONTINUE and presses Enter here. Bridge requests served while the title menu was loading left it
-    on a spinner three runs in a row (2026-11-09); the title backdrop already reports mission 40010
-    and heliSpace=true, so polling can't tell the title from the helicopter.
-    title_wait "poll" (simulation): poll state() until heliSpace."""
+    title_wait "auto" (default): when the title menu is up, CoopQA.pressContinue() does what selecting
+    CONTINUE does. If the game sits in another title step for long, a person is asked to press the key
+    it wants, and the step is logged so it can be automated next.
+    title_wait "enter": a person presses CONTINUE and then Enter here; nothing is sent before that."""
     t = cfg["timeouts"]
-    if cfg.get("title_wait", "enter") == "enter":
+    if cfg.get("title_wait", "auto") == "enter":
         copy.log("*** ACTION NEEDED: press CONTINUE in the %s, wait until you control Snake in the "
                  "helicopter, then press Enter here" % window)
         input()
         copy.must_live()
-        copy.wait_state("helicopter", heli, t["mission_load"])
-    else:
-        copy.wait_state("helicopter (title -> Continue)", heli, t["title"],
-                        prompt="press CONTINUE in the %s" % window)
-    copy.log(copy.name, "in helicopter")
+        copy.wait_state("helicopter", in_game, t["mission_load"])
+        copy.log(copy.name, "in helicopter")
+        return
+
+    deadline = time.time() + t["title"]
+    seq, seq_since, presses, last_press, nagged, last = None, time.time(), 0, 0.0, None, None
+    while time.time() < deadline:
+        copy.must_live()
+        try:
+            last = copy.state()
+        except BridgeError as e:  # loading: no Lua frames
+            last = {"error": str(e)}
+            time.sleep(1)
+            continue
+        if in_game(last):
+            copy.log(copy.name, "in helicopter (CONTINUE pressed by the runner %d time(s))" % presses)
+            return
+        cur = "%s/%s" % (last.get("mission"), last.get("sequence"))
+        if cur != seq:
+            seq, seq_since = cur, time.time()
+            copy.log(copy.name, "title step:", cur)
+        waited = time.time() - seq_since
+        if last.get("sequence") == "Seq_Game_TitleMenu":
+            if waited >= 2 and presses < 3 and time.time() - last_press >= 15:
+                r = copy.eval("CoopQA.pressContinue()")
+                presses, last_press = presses + 1, time.time()
+                copy.log(copy.name, "press CONTINUE:", json.dumps(r))
+        elif waited >= 30 and nagged != cur:
+            nagged = cur
+            copy.log("*** ACTION NEEDED: the %s has been in title step %s for %d s; if it asks for a key, "
+                     "press it (this step is not automated yet)" % (window, cur, waited))
+        time.sleep(1)
+    raise TestFailure("%s: still on the title after %d s (step %s, CONTINUE pressed %d time(s), last state: %s)"
+                      % (copy.name, t["title"], seq, presses, json.dumps(last)[:300]))
 
 
 def start_master_server(cfg, log, run_dir, started):

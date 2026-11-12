@@ -99,9 +99,33 @@ Dynamite = {
 
 QA_HOST = { freezeMs = 0, quit = false, stackErrors = 0 }
 
-after(100, function() -- title -> helicopter happens by itself here (the owner presses Continue in the game)
+-- Title screen as on 1.0.15.4: it runs over mission 40010 (heliSpace already true) until CONTINUE.
+local sequence = "Seq_Demo_Init"
+gvars = { ini_isTitleMode = false }
+mvars = { mis_missionStateIsNotInGame = true, seq_sequenceTable = { Seq_Game_TitleMenu = {} } }
+TppSequence = {
+	GetCurrentSequenceName = function()
+		return sequence
+	end,
+}
+mvars.seq_sequenceTable.Seq_Game_TitleMenu.OnSelectContinue = function()
+	if os.getenv("QA_SIM_TITLE_STUCK") then
+		return
+	end
+	after(50, function()
+		sequence = "Seq_Game_MainGame"
+		gvars.ini_isTitleMode = false
+		mvars.mis_missionStateIsNotInGame = false
+		log("[lua] TppMission.OnMissionStart, mission code 40010")
+	end)
+end
+after(100, function()
 	vars.missionCode = 40010
-	log("[lua] TppMission.OnMissionStart, mission code 40010")
+	gvars.ini_isTitleMode = true
+	sequence = "Seq_Demo_StartHasTitleMission"
+	after(100, function()
+		sequence = "Seq_Game_TitleMenu"
+	end)
 end)
 
 function QA_SIM_TICK()
