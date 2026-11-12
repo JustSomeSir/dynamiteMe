@@ -26,6 +26,7 @@ import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import winkeys  # noqa: E402
 from bridge_client import Bridge, BridgeError, endpoint_from_file  # noqa: E402
 
 
@@ -225,6 +226,11 @@ class Copy:
 
 
 # ------------------------------------------------------------------ the session every test needs
+# Title steps that wait for a key press, and after how many seconds in the step to start pressing
+# (1.0.15.4, 2026-11-12: with a prompt key press these took 5 s and 8 s; without one they never ended).
+KEY_STEPS = {"Seq_Demo_LogInKonamiServer": 8, "Seq_Demo_StartHasTitleMission": 12}
+
+
 def in_game(st):
     """Past the title and playable. The title runs over the loaded mission, which already reports
     mission 40010 and heliSpace=true; the sequence and the title flag tell the two apart
@@ -237,8 +243,9 @@ def wait_title(cfg, copy, heli, window):
     """Gets a copy from the title screen into the helicopter.
 
     title_wait "auto" (default): when the title menu is up, CoopQA.pressContinue() does what selecting
-    CONTINUE does. If the game sits in another title step for long, a person is asked to press the key
-    it wants, and the step is logged so it can be automated next.
+    CONTINUE (or "return to ACC" when the save is inside a mission) does. Steps that wait for a key get
+    Enter typed into the game window (title_keys, Windows only, only while that window is in front).
+    If the game still sits in a step for 30 s, a person is asked to press the key.
     title_wait "enter": a person presses CONTINUE and then Enter here; nothing is sent before that."""
     t = cfg["timeouts"]
     if cfg.get("title_wait", "auto") == "enter":
@@ -252,6 +259,7 @@ def wait_title(cfg, copy, heli, window):
 
     deadline = time.time() + t["title"]
     seq, seq_since, presses, last_press, nagged, last = None, time.time(), 0, 0.0, None, None
+    keys, last_key = 0, 0.0
     while time.time() < deadline:
         copy.must_live()
         try:
@@ -273,10 +281,25 @@ def wait_title(cfg, copy, heli, window):
                 r = copy.eval("CoopQA.pressContinue()")
                 presses, last_press = presses + 1, time.time()
                 copy.log(copy.name, "press CONTINUE:", json.dumps(r))
+        elif last.get("titleMode") is False and last.get("sequence") and isinstance(last.get("mission"), int) \
+                and last["mission"] >= 10000 and last.get("heliSpace") is False:
+            raise TestFailure("%s: the title loaded mission %s instead of the helicopter (sequence %s)"
+                              % (copy.name, last["mission"], last.get("sequence")))
+        elif (last.get("sequence") in KEY_STEPS and cfg.get("title_keys", True) and winkeys.available()
+              and waited >= KEY_STEPS[last["sequence"]] and time.time() - last_key >= 4 and keys < 12):
+            # these steps wait for a key and have no handler to call: press Enter in the game window
+            try:
+                same = copy.state().get("sequence") == last.get("sequence")
+            except BridgeError:
+                same = False
+            if same:
+                sent, why = winkeys.press(copy.proc.pid)
+                keys, last_key = keys + 1, time.time()
+                copy.log(copy.name, "press Enter in the game window (%s):" % last["sequence"], why)
         elif waited >= 30 and nagged != cur:
             nagged = cur
             copy.log("*** ACTION NEEDED: the %s has been in title step %s for %d s; if it asks for a key, "
-                     "press it (this step is not automated yet)" % (window, cur, waited))
+                     "press it" % (window, cur, waited))
         time.sleep(1)
     raise TestFailure("%s: still on the title after %d s (step %s, CONTINUE pressed %d time(s), last state: %s)"
                       % (copy.name, t["title"], seq, presses, json.dumps(last)[:300]))

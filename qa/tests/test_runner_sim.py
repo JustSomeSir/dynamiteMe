@@ -7,6 +7,7 @@ Scenarios (each runs the real runner as a subprocess and checks its RESULT line 
   desync         client sees the host 5 m off              -> RESULT: FAIL (positions)
   noconnect      CreateClientSession always fails          -> RESULT: FAIL (could not connect)
   sharedsave     both copies use one save file             -> RESULT: FAIL (same save file)
+  savedinmission the client's save is inside a mission      -> RESULT: PASS (runner returns to the ACC)
   titlestuck     CONTINUE does nothing on the host          -> RESULT: FAIL (still on the title)
   crash          client exits during the mission           -> RESULT: FAIL (exited)
 Last line: ALL OK only if every scenario gave the expected verdict.
@@ -86,6 +87,7 @@ def main():
         scenario(exe, "desync", {"client": {"QA_SIM_DESYNC": "1"}}, False, "player 0 differs", twins=False),
         scenario(exe, "noconnect", {"client": {"QA_SIM_NOCONNECT": "1"}}, False, "could not connect", twins=False),
         scenario(exe, "sharedsave", {"client": {"QA_SIM_SHARED_SAVE": "1"}}, False, "same save file", twins=False),
+        scenario(exe, "savedinmission", {"client": {"QA_SIM_SAVED_IN_MISSION": "1"}}, True, "OnSelectRestartHeli", twins=False),
         scenario(exe, "titlestuck", {"host": {"QA_SIM_TITLE_STUCK": "1"}}, False, "still on the title", twins=False),
         scenario(exe, "crash", {"client": {"QA_SIM_CRASH_IN_MISSION": "1"}}, False, "[stability]: client", twins=False),
     ]

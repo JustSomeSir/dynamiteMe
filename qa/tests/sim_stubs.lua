@@ -108,16 +108,29 @@ TppSequence = {
 		return sequence
 	end,
 }
-mvars.seq_sequenceTable.Seq_Game_TitleMenu.OnSelectContinue = function()
+-- QA_SIM_SAVED_IN_MISSION: the save was left inside mission 10020, so CONTINUE loads that mission
+gvars.title_nextMissionCode = os.getenv("QA_SIM_SAVED_IN_MISSION") and 10020 or 40010
+local function leaveTitle(mission, seq)
 	if os.getenv("QA_SIM_TITLE_STUCK") then
 		return
 	end
 	after(50, function()
-		sequence = "Seq_Game_MainGame"
+		vars.missionCode = mission
+		sequence = seq
 		gvars.ini_isTitleMode = false
 		mvars.mis_missionStateIsNotInGame = false
-		log("[lua] TppMission.OnMissionStart, mission code 40010")
+		log("[lua] TppMission.OnMissionStart, mission code " .. mission)
 	end)
+end
+mvars.seq_sequenceTable.Seq_Game_TitleMenu.OnSelectContinue = function()
+	if gvars.title_nextMissionCode == 40010 then
+		leaveTitle(40010, "Seq_Game_MainGame")
+	else
+		leaveTitle(gvars.title_nextMissionCode, "Seq_Game_RescueMiller")
+	end
+end
+mvars.seq_sequenceTable.Seq_Game_TitleMenu.OnSelectRestartHeli = function()
+	leaveTitle(40010, "Seq_Game_MainGame")
 end
 after(100, function()
 	vars.missionCode = 40010

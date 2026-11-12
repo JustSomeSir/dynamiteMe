@@ -81,6 +81,14 @@ check(string.find(reply("state", ""), '"titleMode":true') ~= nil, "state reports
 check(reply("eval", "CoopQA.pressContinue().ok") == "1false" and pressed == 0, "no CONTINUE outside the title menu")
 seqName = "Seq_Game_TitleMenu"
 check(reply("eval", "CoopQA.pressContinue().ok") == "1true" and pressed == 1, "CONTINUE calls the menu's OnSelectContinue")
+local restarted = 0
+mvars.seq_sequenceTable.Seq_Game_TitleMenu.OnSelectRestartHeli = function() restarted = restarted + 1 end
+gvars.title_nextMissionCode = 40010
+check(reply("eval", "CoopQA.pressContinue().item") == '1"OnSelectContinue"' and pressed == 2, "save in the helicopter: CONTINUE")
+gvars.title_nextMissionCode = 10020
+check(reply("eval", "CoopQA.pressContinue().item") == '1"OnSelectRestartHeli"' and restarted == 1 and pressed == 2, "save inside a mission: return to ACC, not CONTINUE")
+gvars.title_nextMissionCode = nil
+check(reply("eval", "3105039150") == "13105039150", "integers above 2^31 keep their value")
 mvars.seq_sequenceTable.Seq_Game_TitleMenu.OnSelectContinue = nil
 check(reply("eval", "CoopQA.pressContinue().ok") == "1false", "missing handler is reported, not raised")
 

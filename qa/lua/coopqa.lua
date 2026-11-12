@@ -62,7 +62,8 @@ local function encode(v, depth)
 			return "null"
 		end
 		if math.floor(v) == v and math.abs(v) < 1e15 then
-			return string.format("%d", v)
+			-- not %d: in the game's Lua it is a 32-bit int, so StrCode32 hashes >= 2^31 came out wrong
+			return string.format("%.0f", v)
 		end
 		-- the C locale decides the decimal mark; JSON needs "."
 		return (string.gsub(string.format("%.6f", v), ",", "."))
@@ -194,19 +195,29 @@ function M.startMission(missionCode)
 	return { ok = r ~= false, reserved = r }
 end
 
--- Title menu: do what selecting CONTINUE does. Seq_Game_TitleMenu handles the UI message "Continue" with
--- its OnSelectContinue (seen with qa/probe_title.py on 1.0.15.4, 2026-11-12).
+-- Title menu: do what selecting a menu item does. Seq_Game_TitleMenu handles the UI message "Continue"
+-- with its OnSelectContinue (seen with qa/probe_title.py on 1.0.15.4, 2026-11-12). CONTINUE loads the
+-- saved mission (gvars.title_nextMissionCode); a save left inside a mission would put this copy there
+-- instead of the helicopter (seen 2026-11-12), so then the menu's "return to ACC" handler is used.
 function M.pressContinue()
 	local name = TppSequence.GetCurrentSequenceName()
 	if name ~= "Seq_Game_TitleMenu" then
 		return { ok = false, reason = "sequence is " .. tostring(name) }
 	end
 	local seq = mvars.seq_sequenceTable and mvars.seq_sequenceTable[name]
-	if type(seq) ~= "table" or type(seq.OnSelectContinue) ~= "function" then
-		return { ok = false, reason = "Seq_Game_TitleMenu has no OnSelectContinue" }
+	if type(seq) ~= "table" then
+		return { ok = false, reason = "no sequence table for Seq_Game_TitleMenu" }
 	end
-	seq.OnSelectContinue()
-	return { ok = true }
+	local nextMission = try(function() return gvars.title_nextMissionCode end)
+	local item = "OnSelectContinue"
+	if type(nextMission) == "number" and not TppMission.IsHelicopterSpace(nextMission) then
+		item = "OnSelectRestartHeli"
+	end
+	if type(seq[item]) ~= "function" then
+		return { ok = false, reason = "Seq_Game_TitleMenu has no " .. item, nextMission = nextMission }
+	end
+	seq[item]()
+	return { ok = true, item = item, nextMission = nextMission }
 end
 
 function M.connect()
