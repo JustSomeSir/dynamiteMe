@@ -47,7 +47,9 @@ def run(host, client, log, out):
     h = host.eval("CoopQA.x.me()")
     out("host.me", h)
     out("client.me", client.eval("CoopQA.x.me()"))
-    points = {"A": (h["x"] + 6.0, h["y"], h["z"] + 6.0), "B": (h["x"] - 6.0, h["y"], h["z"] - 6.0)}
+    points = {"A": (h["x"] + 6.0, h["y"], h["z"] + 6.0), "B": (h["x"] - 6.0, h["y"], h["z"] - 6.0),
+              # where the exp/two-horses data puts the second TppHorse2 locator (mission 10036 ground start)
+              "L": (858.0, 330.5, 1690.0)}
     out("points", points)
 
     def scans(label):

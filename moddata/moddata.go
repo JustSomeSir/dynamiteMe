@@ -10,6 +10,7 @@ import (
 
 //go:embed coop_essentials/coop_essentials.fpkd
 //go:embed tl/*
+//go:embed buddy_horse/buddy_horse2_00.fox2
 //go:embed init_fpkd/*
 //go:embed s*_area_fpkd/*
 //go:embed standalone/*
@@ -62,6 +63,19 @@ type AddToQar struct {
 var OutsideScripts embed.FS
 
 var ReplaceInFPK = []UpdateInFpk{
+	{
+		// EXPERIMENT (exp/two-horses): D-Horse with two TppHorse2 instances, one per player
+		Source: FileFromQar{
+			SourceQar: filepath.Join("master", "chunk1.dat"),
+			NameInQar: "/Assets/tpp/pack/buddy/horse/buddy_horse2_00.fpkd",
+		},
+		Replace: []FileToAdd{
+			{
+				SourceFile: "buddy_horse/buddy_horse2_00.fox2",
+				FileName:   "/Assets/tpp/level_asset/chara/buddy/horse/buddy_horse2_00.fox2",
+			},
+		},
+	},
 	{
 		// skip logos, skip "this game uses autosave" prompt
 		Source: FileFromQar{
