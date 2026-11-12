@@ -39,10 +39,10 @@ end
 function X.objects(typeName, n)
 	local out = {}
 	for i = 0, n - 1 do
-		local id = try(GameObject.GetGameObjectIdByIndex, typeName, i)
+		local id = try(function() return GameObject.GetGameObjectIdByIndex(typeName, i) end)
 		local e = { index = i, id = id }
-		if type(id) == "number" and id ~= GameObject.NULL_ID then
-			local pos = try(GameObject.SendCommand, id, { id = "GetPosition" })
+		if type(id) == "number" and id ~= try(function() return GameObject.NULL_ID end) then
+			local pos = try(function() return GameObject.SendCommand(id, { id = "GetPosition" }) end)
 			e.pos = type(pos) == "string" and pos or v3(pos)
 		end
 		out[#out + 1] = e
