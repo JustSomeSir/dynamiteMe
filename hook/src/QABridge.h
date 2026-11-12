@@ -23,6 +23,9 @@ namespace Dynamite::QA {
     int l_QAPlayerPos(lua_State *L);
     // test copies: instance id from dynamite/instance.txt, "" for normal play
     int l_InstanceId(lua_State *L);
+    // test-only memory probes for objects whose position Lua can't ask for (MemScanCore.h)
+    int l_QAScan(lua_State *L);
+    int l_QAVec(lua_State *L);
 } // namespace Dynamite::QA
 
 #endif

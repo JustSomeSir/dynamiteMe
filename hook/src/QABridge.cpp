@@ -7,6 +7,7 @@
 #include "lua/lua.h"
 #include "spdlog/spdlog.h"
 
+#include "MemScanCore.h"
 #include "QABridgeCore.h"
 #include "SecondInstance.h"
 
@@ -136,6 +137,66 @@ namespace Dynamite::QA {
     int l_QAMemberCount(lua_State *L) {
         lua_pushinteger(L, g_hook->dynamiteCore.GetMemberCount());
         return 1;
+    }
+
+    namespace {
+        // Reads this process's own memory without faulting on unmapped or guarded pages.
+        size_t SafeRead(uintptr_t addr, void *out, size_t n) {
+            MEMORY_BASIC_INFORMATION mbi{};
+            if (VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi)) == 0) return 0;
+            if (mbi.State != MEM_COMMIT || (mbi.Protect & (PAGE_NOACCESS | PAGE_GUARD)) != 0) return 0;
+            const uintptr_t end = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
+            if (addr >= end) return 0;
+            if (n > end - addr) n = end - addr;
+            SIZE_T got = 0;
+            if (!ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<LPCVOID>(addr), out, n, &got)) return 0;
+            return got;
+        }
+    } // namespace
+
+    // Dynamite.QAScan(objectId, x, y, z, radius, depth, window, maxNodes) -> text, see MemScanCore.h
+    int l_QAScan(lua_State *L) {
+        if (!g_enabled) return 0;
+        const auto id = static_cast<uint16_t>(luaL_checkinteger(L, 1));
+        ScanOptions o;
+        o.x = static_cast<float>(luaL_checknumber(L, 2));
+        o.y = static_cast<float>(luaL_checknumber(L, 3));
+        o.z = static_cast<float>(luaL_checknumber(L, 4));
+        o.radius = static_cast<float>(luaL_checknumber(L, 5));
+        o.depth = static_cast<int>(luaL_checkinteger(L, 6));
+        o.window = static_cast<size_t>(luaL_checkinteger(L, 7));
+        o.maxNodes = static_cast<size_t>(luaL_checkinteger(L, 8));
+        if (o.depth < 0 || o.depth > 8 || o.window < 12 || o.window > 0x10000 || o.maxNodes > 200000) {
+            lua_pushstring(L, "bad arguments");
+            return 1;
+        }
+        if (const auto exe = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr))) {
+            const auto *dos = reinterpret_cast<const IMAGE_DOS_HEADER *>(exe);
+            const auto *nt = reinterpret_cast<const IMAGE_NT_HEADERS *>(exe + dos->e_lfanew);
+            o.skipLo = exe; // code and vtables: no positions there
+            o.skipHi = exe + nt->OptionalHeader.SizeOfImage;
+        }
+        const auto root = reinterpret_cast<uintptr_t>(FindGameObjectWithID(id));
+        char head[64];
+        snprintf(head, sizeof(head), "root=%p\n", reinterpret_cast<void *>(root));
+        const std::string out = head + ScanForVec3(root, o, &SafeRead);
+        lua_pushstring(L, out.c_str());
+        return 1;
+    }
+
+    // Dynamite.QAVec(objectId, "40>10@50") -> x, y, z (nothing if the path can't be read)
+    int l_QAVec(lua_State *L) {
+        if (!g_enabled) return 0;
+        const auto id = static_cast<uint16_t>(luaL_checkinteger(L, 1));
+        size_t n = 0;
+        const char *path = luaL_checklstring(L, 2, &n);
+        float v[3];
+        const auto root = reinterpret_cast<uintptr_t>(FindGameObjectWithID(id));
+        if (!ReadVec3ByPath(root, std::string(path, n), &SafeRead, v)) return 0;
+        lua_pushnumber(L, v[0]);
+        lua_pushnumber(L, v[1]);
+        lua_pushnumber(L, v[2]);
+        return 3;
     }
 
     int l_InstanceId(lua_State *L) {

@@ -500,6 +500,8 @@ namespace Dynamite {
             {"QAMemberCount", QA::l_QAMemberCount},
             {"QAPlayerPos", QA::l_QAPlayerPos},
             {"InstanceId", QA::l_InstanceId},
+            {"QAScan", QA::l_QAScan},
+            {"QAVec", QA::l_QAVec},
             {nullptr, nullptr},
         };
         luaI_openlib(L, "Dynamite", libFuncs, 0);

@@ -16,6 +16,17 @@ $CXX $flags "$here/message_validation_test.cpp" -o "$out/mv"
 "$out/mv"
 $CXX $flags "$here/instance_name_test.cpp" -o "$out/inst"
 "$out/inst"
+$CXX $flags "$here/memscan_test.cpp" -o "$out/memscan"
+"$out/memscan"
+# memscan mutants: no visited set check on depth, radius ignored on one axis
+for m in 's|if (node.depth >= o.depth) continue;||' 's/ || std::fabs(v\[2\] - o.z) > o.radius//'; do
+    mkdir -p "$out/ms/tests" "$out/ms/src"
+    sed "$m" "$src/MemScanCore.h" > "$out/ms/src/MemScanCore.h"
+    cmp -s "$src/MemScanCore.h" "$out/ms/src/MemScanCore.h" && { echo "memscan mutant did not apply: $m"; exit 1; }
+    cp "$here/memscan_test.cpp" "$out/ms/tests/"
+    $CXX $flags "$out/ms/tests/memscan_test.cpp" -o "$out/ms/t"
+    if "$out/ms/t" > /dev/null 2>&1; then echo "memscan MUTANT SURVIVED: $m"; exit 1; else echo "memscan mutant killed"; fi
+done
 
 # Mutants: break the validator in ways a real regression could, expect the test to fail.
 mutants=0; killed=0
