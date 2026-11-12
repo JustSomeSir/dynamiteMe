@@ -4,7 +4,7 @@
   "client": {"dir": "E:\\coop-mgsv\\game2"},
   "master_server": {"exe": "E:\\coop-mgsv\\game\\dynamite.exe", "args": ["-installNow"], "dir": "E:\\coop-mgsv\\game", "port": 6667},
   "preflight_files": ["coopqa.ini", "lua\\coopqa.lua", "steam_proxy.ini", "steamshim.dll", "dinput8.dll"],
-  "mission": 10020,
+  "mission": 10036,
   "position_tolerance_m": 2.0,
   "runs_dir": "E:\\coop-mgsv\\qa\\runs",
   "suite": ["connect", "positions", "stability"],
