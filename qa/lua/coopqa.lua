@@ -98,8 +98,7 @@ local function try(f, ...)
 	return nil
 end
 
--- Player positions come from PlayerInfoService, which hung the game on the title screen
--- (1.0.15.4, 2026-11-09). Only ask inside a real mission: not the title (1), not helicopter space.
+-- Player positions are only meaningful inside a real mission: not the title (1), not helicopter space.
 function M.inMission()
 	if not vars or not vars.missionCode then
 		return false
@@ -246,16 +245,12 @@ function M.dispatch(kind, arg)
 	return "0" .. tostring(res)
 end
 
--- The bridge is pumped only from the helicopter and missions (mission code >= 10000). On the
--- title screen (mission 1) the game hung on 2026-11-09 right after the first served request,
--- twice; cause not known yet. The runner just waits until the bridge answers.
+-- Pumped every frame, title screen included. (The title "hang" of 2026-11-09 was the unbound
+-- lua_remove, not the title: any served request froze the game.)
 M.pumpLogged = {}
 function M.Update()
 	M.frame = M.frame + 1
 	local code = vars and vars.missionCode or 0
-	if code < 10000 then
-		return
-	end
 	if not M.pumpLogged[code] and Dynamite and Dynamite.Log then
 		M.pumpLogged[code] = true
 		pcall(Dynamite.Log, "coopqa: pumping in mission " .. tostring(code))

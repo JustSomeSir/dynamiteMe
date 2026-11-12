@@ -31,7 +31,7 @@ check(pumped == 2 and pumpFn == qa.dispatch, "Update pumps once per frame with t
 check(sandbox.CoopQA == qa and rawget(_G, "CoopQA") == nil, "CoopQA is set in the module environment only")
 vars.missionCode = 1
 qa.Update()
-check(pumped == 2, "no pumping on the title screen (mission 1)")
+check(pumped == 3, "pumps on the title screen too (mission 1)")
 vars.missionCode = 40010
 
 local function reply(kind, arg)

@@ -246,10 +246,8 @@ def wait_title(cfg, copy, heli, window):
     copy.log(copy.name, "in helicopter")
 
 
-def bring_up_session(cfg, log, run_dir, started, skip_connect=False):
-    """Master server, host in mission, client connected and in the same mission.
-
-    Everything it starts goes into `started` at once, so the caller can stop it even when this raises."""
+def start_master_server(cfg, log, run_dir, started):
+    """Starts the local master server unless its port is already open."""
     t = cfg["timeouts"]
     if cfg.get("master_server"):
         ms = cfg["master_server"]
@@ -269,6 +267,14 @@ def bring_up_session(cfg, log, run_dir, started, skip_connect=False):
                     raise TestFailure("master server did not open port %s" % ms.get("port", 6667))
                 time.sleep(0.5)
             log("master server up")
+
+
+def bring_up_session(cfg, log, run_dir, started, skip_connect=False):
+    """Master server, host in mission, client connected and in the same mission.
+
+    Everything it starts goes into `started` at once, so the caller can stop it even when this raises."""
+    t = cfg["timeouts"]
+    start_master_server(cfg, log, run_dir, started)
 
     host = Copy("host", cfg["host"], log, run_dir)
     client = Copy("client", cfg["client"], log, run_dir)

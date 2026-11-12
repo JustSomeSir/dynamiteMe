@@ -119,3 +119,7 @@ function QA_SIM_TICK()
 		t.f()
 	end
 end
+
+-- for qa/probe_title.py
+Fox = { StrCode32 = function(s) return #s * 1000 + string.byte(s) end }
+OnlineChallengeTask = { OnMessage = function() end }
