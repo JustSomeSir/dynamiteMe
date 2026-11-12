@@ -34,8 +34,10 @@ try {
 
 foreach ($g in "game", "game2") {
     $dir = "$Root\$g"
-    if (Get-Process -Name mgsvtpp -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$dir\*" }) {
-        throw "mgsvtpp.exe from $dir is running; close it first"
+    foreach ($p in "mgsvtpp", "dynamite") {
+        if (Get-Process -Name $p -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$dir\*" }) {
+            throw "$p.exe from $dir is running (game or master server window); close it first"
+        }
     }
     if (Get-Process -Name dynamite -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$dir\*" }) {
         throw "dynamite.exe (master server / launcher) from $dir is running; close its window first"
